@@ -311,11 +311,15 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
     public void setStatusText(String folderName) {
         String text = getString(R.string.lbl_showing) + " ";
         FilterOptions filters = mAdapter.getFilters();
-        if (filters == null || (!filters.isFavoriteOnly() && !filters.isUnwatchedOnly())) {
+        boolean hasAnyFilter = filters != null && (filters.isFavoriteOnly() || filters.isUnwatchedOnly()
+                || filters.isPlayedOnly() || filters.isResumableOnly());
+        if (!hasAnyFilter) {
             text += getString(R.string.lbl_all_items);
         } else {
             text += (filters.isUnwatchedOnly() ? getString(R.string.lbl_unwatched) : "") + " " +
-                    (filters.isFavoriteOnly() ? getString(R.string.lbl_favorites) : "");
+                    (filters.isPlayedOnly() ? getString(R.string.lbl_watched) : "") + " " +
+                    (filters.isFavoriteOnly() ? getString(R.string.lbl_favorites) : "") + " " +
+                    (filters.isResumableOnly() ? getString(R.string.lbl_continue_watching) : "");
         }
 
         if (mAdapter.getStartLetter() != null) {
@@ -662,6 +666,8 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         FilterOptions filters = new FilterOptions();
         filters.setFavoriteOnly(libraryPreferences.get(LibraryPreferences.Companion.getFilterFavoritesOnly()));
         filters.setUnwatchedOnly(libraryPreferences.get(LibraryPreferences.Companion.getFilterUnwatchedOnly()));
+        filters.setPlayedOnly(libraryPreferences.get(LibraryPreferences.Companion.getFilterPlayedOnly()));
+        filters.setResumableOnly(libraryPreferences.get(LibraryPreferences.Companion.getFilterContinueWatchingOnly()));
 
         mAdapter.setRetrieveFinishedListener(new EmptyResponse(getLifecycle()) {
             @Override
@@ -704,13 +710,17 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
     private ImageButton mSortButton;
     private ImageButton mSettingsButton;
     private ImageButton mUnwatchedButton;
+    private ImageButton mPlayedButton;
     private ImageButton mFavoriteButton;
+    private ImageButton mResumableButton;
     private ImageButton mLetterButton;
 
     private void updateDisplayPrefs() {
         CoroutineUtils.runOnLifecycle(getLifecycle(), (coroutineScope, continuation) -> {
             libraryPreferences.set(LibraryPreferences.Companion.getFilterFavoritesOnly(), mAdapter.getFilters().isFavoriteOnly());
             libraryPreferences.set(LibraryPreferences.Companion.getFilterUnwatchedOnly(), mAdapter.getFilters().isUnwatchedOnly());
+            libraryPreferences.set(LibraryPreferences.Companion.getFilterPlayedOnly(), mAdapter.getFilters().isPlayedOnly());
+            libraryPreferences.set(LibraryPreferences.Companion.getFilterContinueWatchingOnly(), mAdapter.getFilters().isResumableOnly());
             libraryPreferences.set(LibraryPreferences.Companion.getSortBy(), mAdapter.getSortBy());
             libraryPreferences.set(LibraryPreferences.Companion.getSortOrder(), getSortOption(mAdapter.getSortBy()).order);
             return libraryPreferences.commit(continuation);
@@ -765,7 +775,9 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
                     if (filters == null) filters = new FilterOptions();
 
                     filters.setUnwatchedOnly(!filters.isUnwatchedOnly());
+                    if (filters.isUnwatchedOnly()) filters.setPlayedOnly(false);
                     mUnwatchedButton.setActivated(filters.isUnwatchedOnly());
+                    mPlayedButton.setActivated(filters.isPlayedOnly());
                     mAdapter.setFilters(filters);
                     mAdapter.Retrieve();
                     updateDisplayPrefs();
@@ -773,6 +785,29 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
             });
             mUnwatchedButton.setContentDescription(getString(R.string.lbl_unwatched));
             binding.toolBar.addView(mUnwatchedButton);
+
+            mPlayedButton = new ImageButton(requireContext(), null, 0, R.style.Button_Icon);
+            mPlayedButton.setImageResource(R.drawable.ic_watch);
+            mPlayedButton.setActivated(mAdapter.getFilters().isPlayedOnly());
+            mPlayedButton.setMaxHeight(size);
+            mPlayedButton.setAdjustViewBounds(true);
+            mPlayedButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    FilterOptions filters = mAdapter.getFilters();
+                    if (filters == null) filters = new FilterOptions();
+
+                    filters.setPlayedOnly(!filters.isPlayedOnly());
+                    if (filters.isPlayedOnly()) filters.setUnwatchedOnly(false);
+                    mPlayedButton.setActivated(filters.isPlayedOnly());
+                    mUnwatchedButton.setActivated(filters.isUnwatchedOnly());
+                    mAdapter.setFilters(filters);
+                    mAdapter.Retrieve();
+                    updateDisplayPrefs();
+                }
+            });
+            mPlayedButton.setContentDescription(getString(R.string.lbl_watched));
+            binding.toolBar.addView(mPlayedButton);
         }
 
         mFavoriteButton = new ImageButton(requireContext(), null, 0, R.style.Button_Icon);
@@ -795,6 +830,27 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         });
         mFavoriteButton.setContentDescription(getString(R.string.lbl_favorite));
         binding.toolBar.addView(mFavoriteButton);
+
+        mResumableButton = new ImageButton(requireContext(), null, 0, R.style.Button_Icon);
+        mResumableButton.setImageResource(R.drawable.ic_resume);
+        mResumableButton.setActivated(mAdapter.getFilters().isResumableOnly());
+        mResumableButton.setMaxHeight(size);
+        mResumableButton.setAdjustViewBounds(true);
+        mResumableButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FilterOptions filters = mAdapter.getFilters();
+                if (filters == null) filters = new FilterOptions();
+
+                filters.setResumableOnly(!filters.isResumableOnly());
+                mResumableButton.setActivated(filters.isResumableOnly());
+                mAdapter.setFilters(filters);
+                mAdapter.Retrieve();
+                updateDisplayPrefs();
+            }
+        });
+        mResumableButton.setContentDescription(getString(R.string.lbl_continue_watching));
+        binding.toolBar.addView(mResumableButton);
 
         JumplistPopup jumplistPopup = new JumplistPopup();
         mLetterButton = new ImageButton(requireContext(), null, 0, R.style.Button_Icon);
