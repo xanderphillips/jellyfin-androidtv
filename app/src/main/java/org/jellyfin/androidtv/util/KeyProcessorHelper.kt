@@ -7,14 +7,49 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.constant.CustomMessage
+import org.jellyfin.androidtv.data.model.DataRefreshService
+import org.jellyfin.androidtv.data.repository.CustomMessageRepository
+import org.jellyfin.androidtv.ui.itemdetail.deleteLibraryItem
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.itemsApi
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.koin.android.ext.android.inject
 import timber.log.Timber
 import java.util.UUID
+
+/**
+ * Deletes [item] from the library and lets the surrounding row/grid react to the removal:
+ * the shared delete helper records the id in [DataRefreshService.lastDeletedItemId] (consumed
+ * by the browse/home surfaces) and a refresh message is pushed for the current item.
+ */
+fun FragmentActivity.deleteItemAndRefresh(item: BaseItemDto) {
+	val api by inject<ApiClient>()
+	val dataRefreshService by inject<DataRefreshService>()
+	val customMessageRepository by inject<CustomMessageRepository>()
+
+	lifecycleScope.launch {
+		val success = deleteLibraryItem(api, dataRefreshService, item.id, item.name)
+
+		if (success) {
+			Toast.makeText(
+				this@deleteItemAndRefresh,
+				getString(R.string.item_deleted, item.name),
+				Toast.LENGTH_LONG
+			).show()
+			customMessageRepository.pushMessage(CustomMessage.RefreshCurrentItem)
+		} else {
+			Toast.makeText(
+				this@deleteItemAndRefresh,
+				getString(R.string.item_deletion_failed, item.name),
+				Toast.LENGTH_LONG
+			).show()
+		}
+	}
+}
 
 fun FragmentActivity.playFirstUnwatchedItem(parentId: UUID) {
 	val api by inject<ApiClient>()

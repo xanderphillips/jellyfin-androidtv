@@ -23,7 +23,6 @@ import org.jellyfin.androidtv.util.sdk.compat.copyWithUserData
 import org.jellyfin.androidtv.util.showIfNotEmpty
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
-import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
@@ -46,14 +45,9 @@ fun FullDetailsFragment.deleteItem(
 	dataRefreshService: DataRefreshService,
 	navigationRepository: NavigationRepository,
 ) = lifecycleScope.launch {
-	Timber.i("Deleting item ${item.name} (id=${item.id})")
+	val success = deleteLibraryItem(api, dataRefreshService, item.id, item.name)
 
-	try {
-		withContext(Dispatchers.IO) {
-			api.libraryApi.deleteItem(item.id)
-		}
-	} catch (error: ApiClientException) {
-		Timber.e(error, "Failed to delete item ${item.name} (id=${item.id})")
+	if (!success) {
 		Toast.makeText(
 			context,
 			getString(R.string.item_deletion_failed, item.name),
@@ -61,8 +55,6 @@ fun FullDetailsFragment.deleteItem(
 		).show()
 		return@launch
 	}
-
-	dataRefreshService.lastDeletedItemId = item.id
 
 	if (navigationRepository.canGoBack) navigationRepository.goBack()
 	else navigationRepository.navigate(Destinations.home)

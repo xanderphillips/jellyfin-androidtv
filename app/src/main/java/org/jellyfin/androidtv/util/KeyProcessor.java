@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.util;
 
+import android.app.AlertDialog;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MenuItem;
@@ -48,6 +49,7 @@ public class KeyProcessor {
     public static final int MENU_INSTANT_MIX = 11;
     public static final int MENU_CLEAR_QUEUE = 12;
     public static final int MENU_TOGGLE_SHUFFLE = 13;
+    public static final int MENU_DELETE = 14;
 
     private final Lazy<MediaManager> mediaManager = KoinJavaComponent.<MediaManager>inject(MediaManager.class);
     private final Lazy<NavigationRepository> navigationRepository = KoinJavaComponent.<NavigationRepository>inject(NavigationRepository.class);
@@ -248,6 +250,10 @@ public class KeyProcessor {
                     menu.getMenu().add(0, MENU_MARK_FAVORITE, order++, activity.getString(R.string.lbl_add_favorite));
                 }
             }
+
+            if (item.getType() == BaseItemKind.EPISODE && Boolean.TRUE.equals(item.getCanDelete())) {
+                menu.getMenu().add(0, MENU_DELETE, order++, activity.getString(R.string.lbl_delete));
+            }
         }
 
         menu.setOnMenuItemClickListener(new KeyProcessorItemMenuClickListener(activity, rowItem));
@@ -341,11 +347,25 @@ public class KeyProcessor {
                 case MENU_INSTANT_MIX:
                     playbackHelper.getValue().playInstantMix(activity, item);
                     return true;
+                case MENU_DELETE:
+                    confirmDelete(activity, item);
+                    return true;
             }
 
             return false;
         }
     };
+
+    private void confirmDelete(FragmentActivity activity, BaseItemDto item) {
+        Timber.i("Showing item delete confirmation");
+        new AlertDialog.Builder(activity)
+                .setTitle(activity.getString(R.string.item_delete_confirm_title))
+                .setMessage(activity.getString(R.string.item_delete_confirm_message))
+                .setNegativeButton(R.string.lbl_no, null)
+                .setPositiveButton(R.string.lbl_delete, (dialog, which) ->
+                        KeyProcessorHelperKt.deleteItemAndRefresh(activity, item))
+                .show();
+    }
 
     private void togglePlayed(LifecycleOwner lifecycleOwner, UUID itemId, boolean played) {
 

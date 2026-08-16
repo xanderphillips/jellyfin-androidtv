@@ -63,9 +63,11 @@ fun MainToolbar(
 	// Prevent user image to disappear when signing out by skipping null values
 	val currentUser by remember { userRepository.currentUser.filterNotNull() }.collectAsState(null)
 	val userImage = remember(currentUser) { currentUser?.primaryImage?.getUrl(api) }
+	val isAdmin = currentUser?.policy?.isAdministrator == true
 
 	MainToolbar(
 		userImage = userImage,
+		isAdmin = isAdmin,
 		activeButton = activeButton,
 	)
 }
@@ -73,6 +75,7 @@ fun MainToolbar(
 @Composable
 private fun MainToolbar(
 	userImage: String? = null,
+	isAdmin: Boolean = false,
 	activeButton: MainToolbarActiveButton,
 ) {
 	val focusRequester = remember { FocusRequester() }
@@ -156,6 +159,8 @@ private fun MainToolbar(
 		},
 		end = {
 			ToolbarButtons {
+				if (isAdmin) DiskSpaceGauge()
+
 				IconButton(
 					onClick = { settingsViewModel.show() },
 				) {

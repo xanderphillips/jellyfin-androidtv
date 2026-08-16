@@ -26,6 +26,8 @@ class LibraryPreferences(
 		// Filters
 		val filterFavoritesOnly = booleanPreference("FilterFavoritesOnly", false)
 		val filterUnwatchedOnly = booleanPreference("FilterUnwatchedOnly", false)
+		val filterPlayedOnly = booleanPreference("FilterPlayedOnly", false)
+		val filterContinueWatchingOnly = booleanPreference("FilterContinueWatchingOnly", false)
 
 		// Item sorting
 		val sortBy = enumPreference("SortBy", ItemSortBy.SORT_NAME)

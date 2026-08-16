@@ -63,4 +63,35 @@ public class ItemListView extends FrameLayout {
         }
         return ret;
     }
+
+    public boolean removeItem(UUID id) {
+        for (int i = 0; i < mList.getChildCount(); i++) {
+            View view = mList.getChildAt(i);
+            if (view instanceof ItemRowView) {
+                ItemRowView row = (ItemRowView) view;
+                if (id.equals(row.getItem().getId())) {
+                    mList.removeViewAt(i);
+                    mItemIds.remove(id);
+                    reindexRows();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Re-applies the position of every remaining row so surviving rows don't report
+     * the index they had before a removal.
+     */
+    private void reindexRows() {
+        int index = 0;
+        for (int i = 0; i < mList.getChildCount(); i++) {
+            View view = mList.getChildAt(i);
+            if (view instanceof ItemRowView) {
+                ItemRowView row = (ItemRowView) view;
+                row.setItem(row.getItem(), index++);
+            }
+        }
+    }
 }
