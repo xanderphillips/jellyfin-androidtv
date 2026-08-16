@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jellyfin.androidtv.data.model.DataRefreshService
 import org.jellyfin.androidtv.data.repository.ItemMutationRepository
 import org.jellyfin.androidtv.data.repository.ItemRepository
 import org.jellyfin.sdk.api.client.ApiClient
@@ -95,9 +96,10 @@ fun ItemListFragment.toggleFavorite(item: BaseItemDto, callback: (item: BaseItem
 
 fun ItemListFragment.deleteItem(item: BaseItemDto, callback: (success: Boolean) -> Unit) {
 	val api by inject<ApiClient>()
+	val dataRefreshService by inject<DataRefreshService>()
 
 	lifecycleScope.launch {
-		val success = deleteLibraryItem(api, item.id, item.name)
+		val success = deleteLibraryItem(api, dataRefreshService, item.id, item.name)
 		callback(success)
 	}
 }

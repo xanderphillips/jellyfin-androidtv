@@ -45,7 +45,7 @@ fun FullDetailsFragment.deleteItem(
 	dataRefreshService: DataRefreshService,
 	navigationRepository: NavigationRepository,
 ) = lifecycleScope.launch {
-	val success = deleteLibraryItem(api, item.id, item.name)
+	val success = deleteLibraryItem(api, dataRefreshService, item.id, item.name)
 
 	if (!success) {
 		Toast.makeText(
@@ -55,8 +55,6 @@ fun FullDetailsFragment.deleteItem(
 		).show()
 		return@launch
 	}
-
-	dataRefreshService.lastDeletedItemId = item.id
 
 	if (navigationRepository.canGoBack) navigationRepository.goBack()
 	else navigationRepository.navigate(Destinations.home)
