@@ -2,6 +2,7 @@ package org.jellyfin.androidtv.ui.itemdetail;
 
 import static org.koin.java.KoinJavaComponent.inject;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -296,7 +297,39 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
 
         }
 
+        if (row.getItem().getType() == BaseItemKind.EPISODE) {
+            MenuItem delete = menu.getMenu().add(0, 3, order++, R.string.lbl_delete);
+            delete.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+                @Override
+                public boolean onMenuItemClick(MenuItem item) {
+                    confirmAndDeleteEpisode(row);
+                    return true;
+                }
+            });
+        }
+
         menu.show();
+    }
+
+    private void confirmAndDeleteEpisode(final ItemRowView row) {
+        final BaseItemDto item = row.getItem();
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.item_delete_confirm_title))
+                .setMessage(getString(R.string.item_delete_confirm_message))
+                .setNegativeButton(R.string.lbl_no, null)
+                .setPositiveButton(R.string.lbl_delete, (dialog, which) ->
+                        ItemListFragmentHelperKt.deleteItem(this, item, (Boolean success) -> {
+                            if (success) {
+                                mItemList.removeItem(item.getId());
+                                mItems.remove(item);
+                                Utils.showToast(requireContext(), getString(R.string.item_deleted, item.getName()));
+                            } else {
+                                Utils.showToast(requireContext(), getString(R.string.item_deletion_failed, item.getName()));
+                            }
+                            return null;
+                        }))
+                .show();
     }
 
     public void setBaseItem(BaseItemDto item) {

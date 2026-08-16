@@ -92,3 +92,12 @@ fun ItemListFragment.toggleFavorite(item: BaseItemDto, callback: (item: BaseItem
 		callback(item.copy(userData = userData))
 	}
 }
+
+fun ItemListFragment.deleteItem(item: BaseItemDto, callback: (success: Boolean) -> Unit) {
+	val api by inject<ApiClient>()
+
+	lifecycleScope.launch {
+		val success = deleteLibraryItem(api, item.id, item.name)
+		callback(success)
+	}
+}
