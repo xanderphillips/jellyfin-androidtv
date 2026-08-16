@@ -18,6 +18,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -49,24 +52,27 @@ fun DiskSpaceGauge(modifier: Modifier = Modifier) {
 
 	val currentUser by userRepository.currentUser.collectAsState()
 	val isAdministrator = currentUser?.policy?.isAdministrator == true
+	val lifecycleOwner = LocalLifecycleOwner.current
 
 	var storage by remember { mutableStateOf<AggregateStorage?>(null) }
 
-	LaunchedEffect(api, isAdministrator) {
+	LaunchedEffect(api, isAdministrator, lifecycleOwner) {
 		if (!isAdministrator) return@LaunchedEffect
 
-		while (isActive) {
-			val libraries = try {
-				withContext(Dispatchers.IO) {
-					api.systemApi.getSystemStorage().content.libraries
+		lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+			while (isActive) {
+				val libraries = try {
+					withContext(Dispatchers.IO) {
+						api.systemApi.getSystemStorage().content.libraries
+					}
+				} catch (error: ApiClientException) {
+					Timber.e(error, "Failed to load system storage")
+					null
 				}
-			} catch (error: ApiClientException) {
-				Timber.e(error, "Failed to load system storage")
-				null
-			}
 
-			storage = aggregateLibraryStorage(libraries)
-			delay(REFETCH_INTERVAL)
+				if (libraries != null) storage = aggregateLibraryStorage(libraries)
+				delay(REFETCH_INTERVAL)
+			}
 		}
 	}
 
