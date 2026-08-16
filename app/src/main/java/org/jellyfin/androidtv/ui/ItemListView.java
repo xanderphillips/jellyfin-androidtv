@@ -63,4 +63,19 @@ public class ItemListView extends FrameLayout {
         }
         return ret;
     }
+
+    public boolean removeItem(UUID id) {
+        for (int i = 0; i < mList.getChildCount(); i++) {
+            View view = mList.getChildAt(i);
+            if (view instanceof ItemRowView) {
+                ItemRowView row = (ItemRowView) view;
+                if (id.equals(row.getItem().getId())) {
+                    mList.removeViewAt(i);
+                    mItemIds.remove(id);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
