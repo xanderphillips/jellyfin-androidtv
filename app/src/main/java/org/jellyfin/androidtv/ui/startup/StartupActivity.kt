@@ -1,9 +1,12 @@
 package org.jellyfin.androidtv.ui.startup
 
 import android.Manifest
+import android.app.AlertDialog
 import android.app.SearchManager
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
@@ -26,6 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jellyfin.androidtv.BuildConfig
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.auth.repository.SessionRepository
 import org.jellyfin.androidtv.auth.repository.SessionRepositoryState
@@ -43,6 +47,10 @@ import org.jellyfin.androidtv.ui.startup.fragment.SelectServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.ServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.SplashFragment
 import org.jellyfin.androidtv.ui.startup.fragment.StartupToolbarFragment
+import org.jellyfin.androidtv.update.UpdateChecker
+import org.jellyfin.androidtv.update.UpdateCheckResult
+import org.jellyfin.androidtv.update.UpdateInstaller
+import org.jellyfin.androidtv.util.AndroidVersion
 import org.jellyfin.androidtv.util.applyTheme
 import org.jellyfin.androidtv.util.createBundle
 import org.jellyfin.sdk.api.client.ApiClient
@@ -69,6 +77,7 @@ class StartupActivity : FragmentActivity() {
 	private val itemLauncher: ItemLauncher by inject()
 	private val workManager: WorkManager by inject()
 	private val socketListener: SocketHandler by inject()
+	private val updateChecker: UpdateChecker by inject()
 
 	private lateinit var binding: ActivityStartupBinding
 
@@ -100,6 +109,55 @@ class StartupActivity : FragmentActivity() {
 
 		// Ensure basic permissions
 		networkPermissionsRequester.launch(arrayOf(Manifest.permission.INTERNET, Manifest.permission.ACCESS_NETWORK_STATE))
+
+		// MVP check-on-launch update check; does not block startup and fails silently on error
+		lifecycleScope.launch { checkForAppUpdate() }
+	}
+
+	private suspend fun checkForAppUpdate() {
+		when (val result = updateChecker.checkForUpdate(BuildConfig.VERSION_NAME)) {
+			is UpdateCheckResult.UpdateAvailable -> showUpdateAvailableDialog(result)
+			UpdateCheckResult.UpToDate, UpdateCheckResult.Unknown -> Unit
+		}
+	}
+
+	private fun showUpdateAvailableDialog(update: UpdateCheckResult.UpdateAvailable) {
+		if (isFinishing || isDestroyed) return
+
+		AlertDialog.Builder(this)
+			.setTitle(getString(R.string.update_available_title))
+			.setMessage(getString(R.string.update_available_message, update.tagName))
+			.setPositiveButton(R.string.update_available_install) { _, _ -> installUpdate(update) }
+			.setNegativeButton(R.string.update_available_later, null)
+			.setCancelable(true)
+			.show()
+	}
+
+	private fun installUpdate(update: UpdateCheckResult.UpdateAvailable) {
+		// canRequestPackageInstalls()/ACTION_MANAGE_UNKNOWN_APP_SOURCES are API 26+; below that,
+		// "install from unknown sources" is a single device-wide legacy setting we can't query
+		// or deep-link to per-app, so just attempt the install directly.
+		if (AndroidVersion.isAtLeastO && !packageManager.canRequestPackageInstalls()) {
+			Toast.makeText(this, R.string.update_available_permission_required, Toast.LENGTH_LONG).show()
+			startActivity(
+				Intent(
+					Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+					Uri.parse("package:$packageName")
+				)
+			)
+			return
+		}
+
+		lifecycleScope.launch {
+			val installer = UpdateInstaller(applicationContext)
+			val apkFile = installer.downloadApk(update.apkDownloadUrl, update.apkAssetName)
+
+			if (apkFile == null) {
+				Toast.makeText(this@StartupActivity, R.string.update_available_download_failed, Toast.LENGTH_LONG).show()
+			} else {
+				installer.startInstall(apkFile)
+			}
+		}
 	}
 
 	override fun onResume() {
