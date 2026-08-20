@@ -9,3 +9,9 @@ build/
 captures/
 .worktrees/
 .env-build
+
+# Signing keystores/credentials must never be committed
+*.jks
+*.keystore
+*.credentials
+keystore.properties
