@@ -42,6 +42,7 @@ import org.jellyfin.androidtv.ui.playback.external.VimuExternalPlayerApi
 import org.jellyfin.androidtv.update.GitHubReleaseApi
 import org.jellyfin.androidtv.update.HttpGitHubReleaseApi
 import org.jellyfin.androidtv.update.UpdateChecker
+import org.jellyfin.androidtv.update.UpdateLaunchGate
 import org.jellyfin.androidtv.ui.playback.external.VlcExternalPlayerApi
 import org.jellyfin.androidtv.ui.playback.nextup.NextUpViewModel
 import org.jellyfin.androidtv.ui.playback.segment.MediaSegmentRepository
@@ -182,6 +183,7 @@ val appModule = module {
 
 	single<GitHubReleaseApi> { HttpGitHubReleaseApi() }
 	single { UpdateChecker(get()) }
+	single { UpdateLaunchGate(get()) }
 
 	factory { (context: Context) -> SearchFragmentDelegate(context, get(), get()) }
 }
