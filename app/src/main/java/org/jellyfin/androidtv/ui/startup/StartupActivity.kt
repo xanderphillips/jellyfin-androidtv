@@ -20,7 +20,10 @@ import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.work.WorkManager
 import androidx.work.await
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -47,9 +50,9 @@ import org.jellyfin.androidtv.ui.startup.fragment.SelectServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.ServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.SplashFragment
 import org.jellyfin.androidtv.ui.startup.fragment.StartupToolbarFragment
-import org.jellyfin.androidtv.update.UpdateChecker
 import org.jellyfin.androidtv.update.UpdateCheckResult
 import org.jellyfin.androidtv.update.UpdateInstaller
+import org.jellyfin.androidtv.update.UpdateLaunchGate
 import org.jellyfin.androidtv.util.AndroidVersion
 import org.jellyfin.androidtv.util.applyTheme
 import org.jellyfin.androidtv.util.createBundle
@@ -77,9 +80,16 @@ class StartupActivity : FragmentActivity() {
 	private val itemLauncher: ItemLauncher by inject()
 	private val workManager: WorkManager by inject()
 	private val socketListener: SocketHandler by inject()
-	private val updateChecker: UpdateChecker by inject()
+	private val updateLaunchGate: UpdateLaunchGate by inject()
 
 	private lateinit var binding: ActivityStartupBinding
+
+	/**
+	 * Resolves once the check-on-launch update check (and, if applicable, the "Update available"
+	 * dialog it shows) has fully resolved. Must be awaited before finishing this activity - see
+	 * [UpdateLaunchGate] for why.
+	 */
+	private lateinit var updateCheckJob: Deferred<Unit>
 
 	private val networkPermissionsRequester = registerForActivityResult(
 		ActivityResultContracts.RequestMultiplePermissions()
@@ -110,19 +120,27 @@ class StartupActivity : FragmentActivity() {
 		// Ensure basic permissions
 		networkPermissionsRequester.launch(arrayOf(Manifest.permission.INTERNET, Manifest.permission.ACCESS_NETWORK_STATE))
 
-		// MVP check-on-launch update check; does not block startup and fails silently on error
-		lifecycleScope.launch { checkForAppUpdate() }
-	}
-
-	private suspend fun checkForAppUpdate() {
-		when (val result = updateChecker.checkForUpdate(BuildConfig.VERSION_NAME)) {
-			is UpdateCheckResult.UpdateAvailable -> showUpdateAvailableDialog(result)
-			UpdateCheckResult.UpToDate, UpdateCheckResult.Unknown -> Unit
+		// MVP check-on-launch update check. Does not block reaching the login/server-select UI,
+		// but IS awaited (see updateCheckJob.await() below) before this activity finishes itself
+		// to navigate to MainActivity - otherwise finishing the activity can destroy the update
+		// dialog's window mid-flight if the check/dialog resolve concurrently with session
+		// readiness (this raced and lost in practice: the dialog would flash briefly then get
+		// torn down as the already-in-flight navigation replaced it).
+		updateCheckJob = lifecycleScope.async {
+			runCatching {
+				updateLaunchGate.awaitBeforeNavigating(BuildConfig.VERSION_NAME) { update ->
+					awaitUpdateAvailableDialog(update)
+				}
+			}.onFailure { error ->
+				Timber.w(error, "Update check/dialog gate failed")
+			}
 		}
 	}
 
-	private fun showUpdateAvailableDialog(update: UpdateCheckResult.UpdateAvailable) {
+	private suspend fun awaitUpdateAvailableDialog(update: UpdateCheckResult.UpdateAvailable) {
 		if (isFinishing || isDestroyed) return
+
+		val dismissed = CompletableDeferred<Unit>()
 
 		AlertDialog.Builder(this)
 			.setTitle(getString(R.string.update_available_title))
@@ -130,7 +148,12 @@ class StartupActivity : FragmentActivity() {
 			.setPositiveButton(R.string.update_available_install) { _, _ -> installUpdate(update) }
 			.setNegativeButton(R.string.update_available_later, null)
 			.setCancelable(true)
+			.setOnDismissListener { dismissed.complete(Unit) }
 			.show()
+
+		// Suspend until the dialog is dismissed (Install now, Later, cancel, or back press all
+		// trigger the dismiss listener above) so navigation can't proceed while it's on screen.
+		dismissed.await()
 	}
 
 	private fun installUpdate(update: UpdateCheckResult.UpdateAvailable) {
@@ -179,6 +202,11 @@ class StartupActivity : FragmentActivity() {
 
 				val currentUser = userRepository.currentUser.first { it != null }
 				Timber.i("CurrentUser changed to ${currentUser?.id} while waiting for startup.")
+
+				// Must not finish this activity (openNextActivity() does, via
+				// finishAfterTransition()) while the update-available dialog is showing or about
+				// to show - see updateCheckJob's assignment in onCreate() for why.
+				updateCheckJob.await()
 
 				lifecycleScope.launch {
 					openNextActivity()
