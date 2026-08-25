@@ -30,7 +30,7 @@
     <string name="lbl_cast_crew">Leikarar og manning</string>
     <string name="lbl_chapters">Kapitlar</string>
     <string name="lbl_trailers">Forfilmar</string>
-    <string name="lbl_series">Røðir</string>
+    <string name="lbl_series">Sendirøðir</string>
     <string name="lbl_favorite">Yndis</string>
     <string name="lbl_runs">Spælitíð</string>
     <string name="runtime_hours_minutes">%1$dt %2$dm</string>
@@ -66,7 +66,7 @@
     <string name="lbl_only_new_episodes">Einans nýggjar partar</string>
     <string name="lbl_repeat_options">Endurøkustillingar</string>
     <string name="lbl_goto_series">Far til røð</string>
-    <string name="lbl_enable_debug">Villugreiningarstillingar</string>
+    <string name="lbl_enable_debug">Villugreiningarstilling</string>
     <string name="lbl_sorted_by">raðað eftir</string>
     <string name="lbl_from">frá</string>
     <string name="lbl_name">Navni</string>
@@ -128,11 +128,11 @@
     <string name="lbl_next_episode">Næsti partur</string>
     <string name="lbl_album_name">Útgávunavn</string>
     <string name="lbl_tv_channel_status">%1$d av %2$d rásum</string>
-    <string name="lbl_news">Tíðindir</string>
+    <string name="lbl_news">Tíðindasendingar</string>
     <string name="lbl_subtitle_delay">Undirtekstaseinkan</string>
     <string name="lbl_new_episodes">Nýggir partar</string>
     <string name="lbl_premieres">Frumsýningar</string>
-    <string name="lbl_repeat_episodes">Endurtak partar</string>
+    <string name="lbl_repeat_episodes">Endursendingar</string>
     <string name="lbl_image_size">Myndastødd</string>
     <string name="lbl_my_media">Mínir miðlar</string>
     <string name="pref_theme_dark">Myrkt (Forsett)</string>
@@ -151,7 +151,7 @@
     <string name="bitrate_kbit">%1$,.0f Kbit/s</string>
     <string name="no_player">Eingin spælari</string>
     <string name="episode_missing">Partur manglar</string>
-    <string name="episode_missing_message">Hesin parturin manglar í tínum savnið. Ynskir tú at leypa hann um og halda áfram til næsta partin?</string>
+    <string name="episode_missing_message">Hesin parturin manglar í savninum. Ynskir tú at leypa hann um og halda áfram til næsta partin?</string>
     <string name="too_many_errors">Ov nógvir feilir. Heldur uppat</string>
     <string name="subtitle_error">Bar ikki til at velja undirtekst</string>
     <string name="audio_error">Bar ikki til at spæla ljóð %1$s</string>
@@ -205,7 +205,7 @@
     <string name="lbl_on_channel">Á %1$s</string>
     <string name="lbl_name_date">%1$s (%2$s)</string>
     <string name="lbl_time_range">%1$s–%2$s</string>
-    <string name="alphabetical">Stavraðað</string>
+    <string name="alphabetical">Navni</string>
     <string name="advanced_settings">Víðkaðar</string>
     <string name="select_version">Útgáva</string>
     <string name="license_version">Útgáva</string>
@@ -326,7 +326,7 @@
     <string name="lbl_by_letter">Stavraði</string>
     <string name="lbl_collections">Søvn</string>
     <string name="lbl_play_all">Spæl allar</string>
-    <string name="msg_recording_cancelled">Upptøka avlýst</string>
+    <string name="msg_recording_cancelled">Upptøkan er avlýst</string>
     <string name="lbl_specials">Eykapartar</string>
     <string name="playback_info_play_method">Spæliháttalag: %1$s</string>
     <string name="lbl_resume_from">Tak uppaftur frá %1$s</string>
@@ -429,7 +429,7 @@
     <string name="pref_developer_link_description">Víðkaðar og royndarfunkur</string>
     <string name="lbl_hidden">Dult</string>
     <string name="lbl_on_any_channel">Á einhvørjari rás</string>
-    <string name="enable_playback_module_description">Hettar er ein royndarfunka. Eingin hjálp verður veitt fyri henni.</string>
+    <string name="enable_playback_module_description">Hetta er ein royndarfunka. Eingin hjálp verður veitt fyri henni.</string>
     <string name="always_authenticate">Spyr altíð um innritanarupplýsingar</string>
     <string name="pref_subtitles_bold">Feitir stavir</string>
     <string name="color_pink">Ljósareyður</string>
@@ -440,7 +440,7 @@
     <string name="speech_error_no_permission">Vantar rættindi at brúka ljóðtakið. Vinaliga játta rættindini í kervistillingum.</string>
     <string name="color_custom">Tillaga lit</string>
     <string name="filters">Filtur</string>
-    <string name="playback_video_player_external_empty">Eingin kykmyndaspælara-app ið kann spæla Jellyfin kykmyndir er innløgd á hesa eindina.</string>
+    <string name="playback_video_player_external_empty">Eingin kykmyndaspælara-app ið kann spæla Jellyfin kykmyndir er innløgd á hesi eindini.</string>
     <string name="byletter_letters">AÁBCDEFGHIÍJKLMNOÓPQRSTUÚVWXYÝÆØZ</string>
     <string name="lbl_show_indicators">Vís ávísar fyri</string>
     <string name="lbl_program_ended">Sendingin er liðug</string>
@@ -492,7 +492,7 @@
     <string name="pref_crash_reports_enabled">Sorúrrit verða send til ambætaran ið seinast varð nýttur</string>
     <string name="pref_crash_report_logs_enabled">Gerðalistar verða íroknaðir í sorúrritum</string>
     <string name="pref_crash_report_logs_disabled">Gerðalistar verða ikki við í sorúrritum</string>
-    <string name="crash_report_toast">Ups! Ókend villa fór fram. Eitt sorúrrit var sent tínum Jellifin ambætara.</string>
+    <string name="crash_report_toast">Ups! Ókend villa fór fram. Eitt sorúrrit var sent tínum Jellyfin-ambætara.</string>
     <string name="clear_image_cache_content">Fyllir: %1$s</string>
     <string name="pref_crash_reports_disabled">Sorúrrit verða ikki send</string>
     <string name="pref_subtitles_position">Frástøða frá botninum</string>
@@ -513,7 +513,7 @@
     <string name="pref_theme_muted_purple">Mjúkur purpur</string>
     <string name="lbl_none">Ongan</string>
     <string name="home_section_none">Einki</string>
-    <string name="no_program_data">Ongar skrádátur tøkar</string>
+    <string name="no_program_data">Ongin skrá tøk</string>
     <string name="lbl_shuffle_all">Blanda allar</string>
     <string name="msg_recording_now">Tekur nú uppá</string>
     <string name="msg_will_record">Verður tikin uppá</string>
@@ -526,7 +526,7 @@
     <string name="msg_record_entire_series">Tak alla sendirøðina uppá?</string>
     <string name="lbl_series_recordings">Røðupptøkur</string>
     <string name="add_user">Legg inn konto</string>
-    <string name="no_user_warning">Eingin konta var funnin!\nLegg eina nýggja konto inn við at trýsta á \"Legg inn konto\" knøttin.</string>
+    <string name="no_user_warning">Eingin konta var funnin!\nLegg eina konto inn við at trýsta á \"Legg inn konto\" knøttin.</string>
     <string name="random">Tilvildarligur</string>
     <string name="pref_report_device_profile_failure">Miseydnaðist at avhenda skjal. Møguliga noktar Jellyfin-ambætarin at taka ímóti viðskiftaragerðalistum.</string>
     <string name="pref_report_device_profile_success">Skjal fráboðað sum %1$s</string>
@@ -605,7 +605,7 @@
     <string name="watch_now">Spæl nú</string>
     <string name="lbl_hide_watched_checkmark">Tá ið partar eru ósæddir</string>
     <string name="lbl_use_series_thumbnails">Vís smámynd raðanna</string>
-    <string name="lbl_use_series_thumbnails_description">Vís røðsmámyndir heldur enn partasmámyndir, tá kaga verður í søvnum</string>
+    <string name="lbl_use_series_thumbnails_description">Vís røðsmámyndir heldur enn partasmámyndir, tá kagað verður í søvnum</string>
     <string name="lbl_starting_early_ending_after">Byrjar %1$s áðrenn og steðgar %2$s eftir at sendingin er liðug sambært skránni</string>
     <string name="lbl_starting_early_ending_on_schedule">Byrjar %1$s áðrenn og steðgar tá sendingin sambært skránni er liðug</string>
     <string name="lbl_starting_on_schedule_ending_after">Byrjar tá sendingin byrjar og steðgar %1$s eftir sendingin er liðug sambært skránni</string>
@@ -618,7 +618,7 @@
     <string name="app_notification_update_soon">Dagfør ambætaran frá útgávu %1$s til í minsta lagi %2$s fyri at kunna at halda á fram at brúka appina eftir næstu dagføring.</string>
     <string name="msg_cancel_entire_series">Ynskir tú at avlýsa ALLAR upptøkur av HESI SENDIRØÐINI?</string>
     <string name="live_tv_preferences">Stillingar fyri beinleiðis sjónvarp</string>
-    <string name="lbl_on_now">Á skrá nú</string>
+    <string name="lbl_on_now">Á sjónvarpsskráum nú</string>
     <string name="lbl_begin_padding">Byrjanarífylling</string>
     <string name="lbl_end_padding">Endaífylling</string>
     <string name="lbl_on_schedule">Sambært skrá (eingin ífylla)</string>
@@ -659,6 +659,12 @@
     <string name="lbl_resume_preroll">Spola aftur við uppafturtøku</string>
     <string name="pref_burn_subtitles_when_transcoding">Kykmyndafest undirtekstir undir umkoting</string>
     <string name="msg_burn_sub_warning">Undirtekstir verða festir á kykmynd. Hetta kann taka nøkur sekund…</string>
-    <string name="pref_burn_subtitles_when_transcoding_description">Fest altíð undirtekstir á kykmyndina undir umkoting. Hetta kann bøta samstillingartrupulleikar við undirtekstum men ógildar tillagingar á undirtekstasnið.</string>
+    <string name="pref_burn_subtitles_when_transcoding_description">Kykmyndafest altíð undirtekstir undir umkoting. Hetta kann bøta samstillingartrupulleikar við undirtekstum men ógildar tillagingar á undirtekstasnið.</string>
     <string name="pref_prerolls_enabled_description">Spæl undanfilmar áðrenn filmar</string>
+    <string name="lbl_empty">Tómur</string>
+    <string name="lbl_now_playing">Spælir nú</string>
+    <string name="lbl_goto_now_playing">Vís \"Spælir nú\"</string>
+    <string name="lbl_coming_up">Komandi sendingar</string>
+    <string name="pref_software_codecs_enabled">Brúka ritbúnaðar-kodek</string>
+    <string name="pref_software_codecs_enabled_description">Summar ritbúnaðarligar verksetanir kunnu hava ónøktandi avrikaføri. Uttan hetta er meira sannlíkt at tørvur er á umkotingum.</string>
 </resources>
