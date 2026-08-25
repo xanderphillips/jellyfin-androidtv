@@ -3,6 +3,9 @@ package org.jellyfin.androidtv.ui.itemhandling
 import android.content.Context
 import androidx.leanback.widget.Presenter
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleCoroutineScope
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
@@ -11,11 +14,8 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.unmockkStatic
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
 import org.jellyfin.androidtv.util.apiclient.EmptyResponse
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.Response
@@ -31,22 +31,36 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class ItemRowAdapterHelperTests : FunSpec({
-	// retrieveNextUpItems launches into ProcessLifecycleOwner's lifecycleScope, which dispatches
-	// onto Dispatchers.Main.immediate. There is no real Android main thread in a JVM unit test, so
-	// a real (non-virtual-time) dispatcher must be installed for that launch to actually run.
-	val mainThreadExecutor = Executors.newSingleThreadExecutor()
-	val mainDispatcher = mainThreadExecutor.asCoroutineDispatcher()
+	// retrieveNextUpItems launches into ProcessLifecycleOwner's real lifecycleScope. Accessing that
+	// scope for the first time anywhere in the JVM makes androidx's LifecycleCoroutineScopeImpl
+	// register itself as a Lifecycle observer via a coroutine dispatched onto Dispatchers.Main -
+	// which calls into android.os.Looper, unmocked in this Robolectric-less JVM unit test. That
+	// throws asynchronously with no attached exception handler, so kotlinx-coroutines-test reports
+	// it as a leaked "uncaught exception" against whatever unrelated test happens to run next
+	// (this bit UpdateLaunchGateTest, since it isn't inherently connected to this test at all).
+	//
+	// To keep this test hermetic we mock the `LifecycleOwner.lifecycleScope` extension so
+	// retrieveNextUpItems launches into a scope this test fully owns, never touching the real
+	// process-global Lifecycle/Looper machinery.
+	val executor = Executors.newSingleThreadExecutor()
+	val dispatcher = executor.asCoroutineDispatcher()
+	val testLifecycleScope = mockk<LifecycleCoroutineScope>(relaxed = true)
+	every { testLifecycleScope.coroutineContext } returns dispatcher + Job()
 
 	beforeEach {
 		mockkStatic("org.jellyfin.sdk.api.client.extensions.ApiClientExtensionsKt")
-		Dispatchers.setMain(mainDispatcher)
+		mockkStatic("androidx.lifecycle.LifecycleOwnerKt")
+		every { any<LifecycleOwner>().lifecycleScope } returns testLifecycleScope
 	}
 
 	afterEach {
-		Dispatchers.resetMain()
+		unmockkStatic("androidx.lifecycle.LifecycleOwnerKt")
 		unmockkStatic("org.jellyfin.sdk.api.client.extensions.ApiClientExtensionsKt")
+	}
+
+	afterSpec {
+		executor.shutdown()
 	}
 
 	// Regression test for a bug where a season with a numbering gap before its first available
