@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.ui.playback.segment.MediaSegmentAction
 import org.jellyfin.androidtv.ui.playback.segment.MediaSegmentRepository
 import org.jellyfin.androidtv.util.sdk.end
+import org.jellyfin.androidtv.util.sdk.isMislabeledHearingImpaired
 import org.jellyfin.androidtv.util.sdk.start
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
@@ -66,7 +67,8 @@ fun PlaybackController.setSubtitleIndex(index: Int, force: Boolean = false) {
 		videoQueueManager.setLastPlayedSubtitleLanguageIsoCode("")
 	} else {
 		val stream = currentMediaSource.mediaStreams?.firstOrNull { it.type == MediaStreamType.SUBTITLE && it.index == index }
-		videoQueueManager.setLastPlayedSubtitleLanguageIsoCode(stream?.language)
+		// Mislabeled streams (.hi.srt reported as Hindi) must not overwrite the real language preference
+		if (stream?.isMislabeledHearingImpaired != true) videoQueueManager.setLastPlayedSubtitleLanguageIsoCode(stream?.language)
 	}
 
 	// Disable subtitles
