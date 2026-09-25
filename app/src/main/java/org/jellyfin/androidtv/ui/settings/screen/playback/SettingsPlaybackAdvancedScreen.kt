@@ -197,6 +197,15 @@ fun SettingsPlaybackAdvancedScreen() {
 
 		item {
 			ListButton(
+				headingContent = { Text(stringResource(R.string.preference_hdr_overrides)) },
+				captionContent = { Text(stringResource(R.string.preference_hdr_overrides_summary)) },
+				onClick = { router.push(Routes.PLAYBACK_HDR_OVERRIDES) },
+				modifier = Modifier.focusKey(Routes.PLAYBACK_HDR_OVERRIDES)
+			)
+		}
+
+		item {
+			ListButton(
 				headingContent = { Text(stringResource(R.string.preference_codecs)) },
 				captionContent = { Text(stringResource(R.string.preference_codecs_summary)) },
 				onClick = { router.push(Routes.PLAYBACK_CODEC) },
@@ -276,17 +285,6 @@ fun SettingsPlaybackAdvancedScreen() {
 				trailingContent = { Checkbox(checked = audioNightMode) },
 				onClick = { audioNightMode = !audioNightMode },
 				modifier = Modifier.focusKey("audio_night_mode")
-			)
-		}
-
-		item {
-			var ac3Enabled by rememberPreference(userPreferences, UserPreferences.ac3Enabled)
-
-			ListButton(
-				headingContent = { Text(stringResource(R.string.lbl_bitstream_ac3)) },
-				trailingContent = { Checkbox(checked = ac3Enabled) },
-				onClick = { ac3Enabled = !ac3Enabled },
-				modifier = Modifier.focusKey("ac3_enabled")
 			)
 		}
 
