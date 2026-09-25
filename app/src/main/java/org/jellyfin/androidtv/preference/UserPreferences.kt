@@ -7,9 +7,11 @@ import org.jellyfin.androidtv.preference.constant.AVCLevel
 import org.jellyfin.androidtv.preference.constant.AppTheme
 import org.jellyfin.androidtv.preference.constant.AudioBehavior
 import org.jellyfin.androidtv.preference.constant.BackdropBehavior
+import org.jellyfin.androidtv.preference.constant.BitstreamAudioMode
 import org.jellyfin.androidtv.preference.constant.BufferLength
 import org.jellyfin.androidtv.preference.constant.ClockBehavior
 import org.jellyfin.androidtv.preference.constant.HEVCLevel
+import org.jellyfin.androidtv.preference.constant.HdrOverrideMode
 import org.jellyfin.androidtv.preference.constant.NextUpBehavior
 import org.jellyfin.androidtv.preference.constant.RefreshRateSwitchingBehavior
 import org.jellyfin.androidtv.preference.constant.StillWatchingBehavior
@@ -133,9 +135,49 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var audioNightMode = enumPreference("audio_night_mode", false)
 
 		/**
-		 * Enable AC3
+		 * AC3 bitstream device profile override.
 		 */
-		var ac3Enabled = booleanPreference("pref_bitstream_ac3", true)
+		var bitstreamAc3 = enumPreference("bitstream_ac3_mode", BitstreamAudioMode.AUTO)
+
+		/**
+		 * EAC3 bitstream device profile override.
+		 */
+		var bitstreamEac3 = enumPreference("bitstream_eac3_mode", BitstreamAudioMode.AUTO)
+
+		/**
+		 * DTS bitstream device profile override.
+		 */
+		var bitstreamDts = enumPreference("bitstream_dts_mode", BitstreamAudioMode.AUTO)
+
+		/**
+		 * TrueHD bitstream device profile override.
+		 */
+		var bitstreamTrueHd = enumPreference("bitstream_truehd_mode", BitstreamAudioMode.AUTO)
+
+		/**
+		 * HDR10 device profile override.
+		 */
+		var hdr10Override = enumPreference("hdr10_override", HdrOverrideMode.AUTO)
+
+		/**
+		 * HDR10+ device profile override.
+		 */
+		var hdr10PlusOverride = enumPreference("hdr10_plus_override", HdrOverrideMode.AUTO)
+
+		/**
+		 * Dolby Vision Profile 5 device profile override.
+		 */
+		var doviProfile5Override = enumPreference("dovi_profile_5_override", HdrOverrideMode.AUTO)
+
+		/**
+		 * Dolby Vision Profile 7 device profile override.
+		 */
+		var doviProfile7Override = enumPreference("dovi_profile_7_override", HdrOverrideMode.AUTO)
+
+		/**
+		 * Dolby Vision Profile 8 device profile override.
+		 */
+		var doviProfile8Override = enumPreference("dovi_profile_8_override", HdrOverrideMode.AUTO)
 
 		/* Live TV */
 		/**
@@ -168,6 +210,12 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 * Enable series thumbnails in home screen rows
 		 */
 		var seriesThumbnailsEnabled = booleanPreference("pref_enable_series_thumbnails", true)
+
+		/**
+		 * Maximum days since last watch to show an item in next up.
+		 * Set to 0 to disable (no cutoff).
+		 */
+		var homeNextUpMaxDays = intPreference("home_next_up_max_days", 0)
 
 		/**
 		 * Subtitles foreground color
@@ -259,6 +307,16 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 * Enable the use of software-based codecs.
 		 */
 		var softwareCodecsEnabled = booleanPreference("software_codecs_enabled", true)
+
+		/**
+		 * Stores the interval for the photo player.
+		 */
+		var photoPlayerPresentationDelay = longPreference("photo_player_presentation_delay", 8000)
+
+		/**
+		 * Integrate with androidx.tvprovider for the Android TV home screen.
+		 */
+		var tvProviderEnabled = booleanPreference("tv_provider_enabled", true)
 	}
 
 	init {
