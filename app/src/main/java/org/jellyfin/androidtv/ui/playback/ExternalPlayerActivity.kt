@@ -19,7 +19,10 @@ import org.jellyfin.androidtv.ui.playback.external.ExternalPlayData
 import org.jellyfin.androidtv.ui.playback.external.ExternalPlayResult
 import org.jellyfin.androidtv.ui.playback.external.ExternalPlayerApi
 import org.jellyfin.androidtv.util.componentName
+import org.jellyfin.androidtv.util.sdk.findPreferredEnglishSubtitleIndex
 import org.jellyfin.androidtv.util.sdk.getDisplayName
+import org.jellyfin.androidtv.util.sdk.subtitleDisplayTitle
+import org.jellyfin.androidtv.util.sdk.subtitleLanguage
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.playStateApi
 import org.jellyfin.sdk.api.client.extensions.subtitleApi
@@ -143,10 +146,17 @@ class ExternalPlayerActivity : FragmentActivity() {
 			url = videoUrl,
 			title = item.getDisplayName(this),
 			fileName = mediaSource.path?.let { File(it).name },
-			externalSubtitles = mediaSource.mediaStreams
-				?.filter { it.type == MediaStreamType.SUBTITLE && it.isExternal }
-				?.sortedWith(compareByDescending<MediaStream> { it.isDefault }.thenBy { it.index })
-				.orEmpty()
+			externalSubtitles = mediaSource.mediaStreams.orEmpty()
+				.filter { it.type == MediaStreamType.SUBTITLE && it.isExternal }
+				.let { externalSubtitles ->
+					// External players generally enable the first subtitle, so put the preferred English one first
+					val englishIndex = externalSubtitles.findPreferredEnglishSubtitleIndex()
+					externalSubtitles.sortedWith(
+						compareByDescending<MediaStream> { it.index == englishIndex }
+							.thenByDescending { it.isDefault }
+							.thenBy { it.index }
+					)
+				}
 				.map { mediaStream ->
 					// We cannot use the DeliveryUrl as that is only populated when using the playback info API, which we skip as we'll
 					// always direct play when using external players. We need to infer the subtitle format based on its path (similar to
@@ -162,8 +172,8 @@ class ExternalPlayerActivity : FragmentActivity() {
 					ExternalPlayData.Subtitle(
 						mediaStream = mediaStream,
 						url = url,
-						name = mediaStream.displayTitle ?: mediaStream.title,
-						language = mediaStream.language
+						name = mediaSource.mediaStreams.orEmpty().subtitleDisplayTitle(mediaStream),
+						language = mediaSource.mediaStreams.orEmpty().subtitleLanguage(mediaStream)
 					)
 				},
 			position = position,

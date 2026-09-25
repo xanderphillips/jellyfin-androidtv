@@ -10,6 +10,7 @@ import org.jellyfin.androidtv.ui.playback.PlaybackController
 import org.jellyfin.androidtv.ui.playback.overlay.CustomPlaybackTransportControlGlue
 import org.jellyfin.androidtv.ui.playback.overlay.VideoPlayerAdapter
 import org.jellyfin.androidtv.ui.playback.setSubtitleIndex
+import org.jellyfin.androidtv.util.sdk.subtitleDisplayTitle
 import org.jellyfin.sdk.model.api.MediaStreamType
 import timber.log.Timber
 
@@ -44,10 +45,11 @@ class ClosedCaptionsAction(
 					isChecked = playbackController.subtitleStreamIndex == -1
 				}
 
-				for (sub in playbackController.currentMediaSource.mediaStreams.orEmpty()) {
+				val streams = playbackController.currentMediaSource.mediaStreams.orEmpty()
+				for (sub in streams) {
 					if (sub.type != MediaStreamType.SUBTITLE) continue
 
-					add(0, sub.index, order++, sub.displayTitle).apply {
+					add(0, sub.index, order++, streams.subtitleDisplayTitle(sub)).apply {
 						isChecked = sub.index == playbackController.subtitleStreamIndex
 					}
 				}
