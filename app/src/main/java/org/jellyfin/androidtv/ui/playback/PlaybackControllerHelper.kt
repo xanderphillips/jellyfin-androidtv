@@ -11,8 +11,9 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.ui.playback.segment.MediaSegmentAction
 import org.jellyfin.androidtv.ui.playback.segment.MediaSegmentRepository
 import org.jellyfin.androidtv.util.sdk.end
-import org.jellyfin.androidtv.util.sdk.isMislabeledHearingImpaired
+import org.jellyfin.androidtv.util.sdk.isEnglishSubtitle
 import org.jellyfin.androidtv.util.sdk.start
+import org.jellyfin.androidtv.util.sdk.subtitleLanguage
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -62,13 +63,14 @@ fun PlaybackController.setSubtitleIndex(index: Int, force: Boolean = false) {
 
 	// Save subtitle language preference for restoration after NextUp screen
 	val videoQueueManager by fragment.inject<VideoQueueManager>()
-	if (index == -1) {
-		// Use empty string to indicate "subtitles explicitly disabled" vs null meaning "no preference"
-		videoQueueManager.setLastPlayedSubtitleLanguageIsoCode("")
-	} else {
-		val stream = currentMediaSource.mediaStreams?.firstOrNull { it.type == MediaStreamType.SUBTITLE && it.index == index }
-		// Mislabeled streams (.hi.srt reported as Hindi) must not overwrite the real language preference
-		if (stream?.isMislabeledHearingImpaired != true) videoQueueManager.setLastPlayedSubtitleLanguageIsoCode(stream?.language)
+	// The choice (including disabling) only applies to the current item, English captions are selected again for the next one
+	videoQueueManager.setSubtitleSelection(currentlyPlayingItem?.id, index)
+	if (index != -1) {
+		val streams = currentMediaSource.mediaStreams.orEmpty()
+		val stream = streams.firstOrNull { it.type == MediaStreamType.SUBTITLE && it.index == index }
+		// Only non-English choices are remembered, English is always auto-selected (including mislabeled .hi.srt)
+		val language = stream?.takeUnless { streams.isEnglishSubtitle(it) }?.let { streams.subtitleLanguage(it) }
+		videoQueueManager.setLastPlayedSubtitleLanguageIsoCode(language)
 	}
 
 	// Disable subtitles

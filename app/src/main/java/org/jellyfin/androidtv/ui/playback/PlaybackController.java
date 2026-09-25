@@ -620,6 +620,35 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         if (mFragment != null) mFragment.closePlayer();
     }
 
+    @Nullable
+    private Integer selectSubtitleIndex(BaseItemDto item, MediaSourceInfo mediaSource) {
+        VideoQueueManager queueManager = videoQueueManager.getValue();
+        List<MediaStream> streams = mediaSource.getMediaStreams();
+        if (streams != null) {
+            for (MediaStream stream : streams) {
+                if (stream.getType() == MediaStreamType.SUBTITLE) {
+                    Timber.d("Subtitle stream %d: language=%s external=%s hi=%s forced=%s path=%s title=%s", stream.getIndex(), stream.getLanguage(), stream.isExternal(), stream.isHearingImpaired(), stream.isForced(), stream.getPath(), stream.getDisplayTitle());
+                }
+            }
+        }
+
+        Integer selectedIndex = queueManager.getSubtitleSelection(item.getId());
+        if (selectedIndex != null) return selectedIndex == -1 ? null : selectedIndex;
+        if (streams == null) return mediaSource.getDefaultSubtitleStreamIndex();
+
+        // A non-English language picked earlier in this queue wins
+        String lastSubtitleLanguage = queueManager.getLastPlayedSubtitleLanguageIsoCode();
+        if (lastSubtitleLanguage != null && !lastSubtitleLanguage.isEmpty()) {
+            Integer matchingIndex = SubtitleLanguageKt.findSubtitleIndexForLanguage(streams, lastSubtitleLanguage);
+            if (matchingIndex != null) return matchingIndex;
+        }
+
+        Integer englishIndex = SubtitleLanguageKt.findPreferredEnglishSubtitleIndex(streams);
+        if (englishIndex != null) return englishIndex;
+
+        return mediaSource.getDefaultSubtitleStreamIndex();
+    }
+
     private void startItem(BaseItemDto item, long position, StreamInfo response) {
         if (!hasInitializedVideoManager() || !hasFragment()) {
             Timber.w("Error - attempting to play without:%s%s", hasInitializedVideoManager() ? "" : " [videoManager]", hasFragment() ? "" : " [overlay fragment]");
@@ -644,21 +673,8 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             return;
         }
 
-        // get subtitle info - prefer saved language preference over server default
-        String lastSubtitleLanguage = videoQueueManager.getValue().getLastPlayedSubtitleLanguageIsoCode();
-        if (lastSubtitleLanguage != null) {
-            if (lastSubtitleLanguage.isEmpty()) {
-                // User explicitly disabled subtitles
-                mCurrentOptions.setSubtitleStreamIndex(null);
-            } else if (response.getMediaSource().getMediaStreams() != null) {
-                // Find subtitle stream matching saved language
-                Integer matchingIndex = SubtitleLanguageKt.findSubtitleIndexForLanguage(response.getMediaSource().getMediaStreams(), lastSubtitleLanguage);
-                mCurrentOptions.setSubtitleStreamIndex(matchingIndex);
-            }
-        } else {
-            // No saved preference, use server default
-            mCurrentOptions.setSubtitleStreamIndex(response.getMediaSource().getDefaultSubtitleStreamIndex());
-        }
+        // get subtitle info - English captions are enabled by default unless disabled for this item
+        mCurrentOptions.setSubtitleStreamIndex(selectSubtitleIndex(item, response.getMediaSource()));
         setDefaultAudioIndex(response);
         Timber.i("default audio index set to %s remote default %s", mDefaultAudioIndex, response.getMediaSource().getDefaultAudioStreamIndex());
         Timber.i("default sub index set to %s remote default %s", mCurrentOptions.getSubtitleStreamIndex(), response.getMediaSource().getDefaultSubtitleStreamIndex());

@@ -51,6 +51,7 @@ import org.jellyfin.androidtv.data.compat.StreamInfo;
 import org.jellyfin.androidtv.preference.UserPreferences;
 import org.jellyfin.androidtv.preference.constant.BufferLength;
 import org.jellyfin.androidtv.preference.constant.ZoomMode;
+import org.jellyfin.androidtv.util.sdk.SubtitleLanguageKt;
 import org.jellyfin.sdk.api.client.ApiClient;
 import org.jellyfin.sdk.model.api.MediaStream;
 import org.jellyfin.sdk.model.api.MediaStreamType;
@@ -397,7 +398,8 @@ public class VideoManager {
         try {
             // Add external subtitles
             List<MediaItem.SubtitleConfiguration> subtitleConfigurations = new ArrayList<>();
-            for (MediaStream mediaStream : streamInfo.getMediaSource().getMediaStreams()) {
+            List<MediaStream> mediaStreams = streamInfo.getMediaSource().getMediaStreams();
+            for (MediaStream mediaStream : mediaStreams) {
                 if (mediaStream.getType() != MediaStreamType.SUBTITLE) continue;
 
                 if (mediaStream.getDeliveryMethod() == SubtitleDeliveryMethod.EXTERNAL) {
@@ -405,8 +407,8 @@ public class VideoManager {
                     MediaItem.SubtitleConfiguration subtitleConfiguration = new MediaItem.SubtitleConfiguration.Builder(subtitleUri)
                             .setId("JF_EXTERNAL:" + String.valueOf(mediaStream.getIndex()))
                             .setMimeType(VideoManagerHelperKt.getSubtitleMediaStreamCodec(mediaStream))
-                            .setLanguage(mediaStream.getLanguage())
-                            .setLabel(mediaStream.getDisplayTitle())
+                            .setLanguage(SubtitleLanguageKt.subtitleLanguage(mediaStreams, mediaStream))
+                            .setLabel(SubtitleLanguageKt.subtitleDisplayTitle(mediaStreams, mediaStream))
                             .setSelectionFlags(getSubtitleSelectionFlags(mediaStream))
                             .build();
                     Timber.i("Adding subtitle track %s of type %s", subtitleConfiguration.uri, subtitleConfiguration.mimeType);
