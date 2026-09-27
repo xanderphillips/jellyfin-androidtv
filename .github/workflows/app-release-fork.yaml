@@ -11,15 +11,29 @@ on:
     types:
       - published
 
+permissions: {}
+
 jobs:
   publish:
     name: Build and attach release APK
+    # Never sign prereleases or drafts with the release key.
+    if: ${{ github.event.release.prerelease == false && github.event.release.draft == false }}
     runs-on: ubuntu-24.04
+    environment: release-signing
     permissions:
       contents: write
     steps:
-      - name: Set JELLYFIN_VERSION
-        run: echo "JELLYFIN_VERSION=$(echo '${{ github.event.release.tag_name }}' | sed 's#^v##' | tr / -)" >> "$GITHUB_ENV"
+      # Runs before any secret is referenced. The tag is untrusted input: it is passed
+      # via env and quoted, never interpolated into the script body.
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$ ]]; then
+            echo "::error::Release tag does not match the fork release pattern; refusing to sign."
+            exit 1
+          fi
+          echo "JELLYFIN_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,7 +48,9 @@ jobs:
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE }}" | base64 --decode > keystore.jks
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE }}
+        run: printf '%s' "$KEYSTORE_B64" | base64 --decode > keystore.jks
 
       - name: Assemble signed release APK
         env:
@@ -47,4 +63,5 @@ jobs:
       - name: Upload release APK to GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" app/build/outputs/apk/release/*-release.apk --clobber
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" app/build/outputs/apk/release/*-release.apk --clobber
