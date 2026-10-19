@@ -3,6 +3,7 @@ package org.jellyfin.androidtv.ui.startup
 import android.Manifest
 import android.app.AlertDialog
 import android.app.SearchManager
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -50,6 +51,7 @@ import org.jellyfin.androidtv.ui.startup.fragment.SelectServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.ServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.SplashFragment
 import org.jellyfin.androidtv.ui.startup.fragment.StartupToolbarFragment
+import org.jellyfin.androidtv.update.InstallPermissionGate
 import org.jellyfin.androidtv.update.UpdateCheckResult
 import org.jellyfin.androidtv.update.UpdateInstaller
 import org.jellyfin.androidtv.update.UpdateLaunchGate
@@ -141,11 +143,12 @@ class StartupActivity : FragmentActivity() {
 		if (isFinishing || isDestroyed) return
 
 		val dismissed = CompletableDeferred<Unit>()
+		var install = false
 
 		AlertDialog.Builder(this)
 			.setTitle(getString(R.string.update_available_title))
 			.setMessage(getString(R.string.update_available_message, update.tagName))
-			.setPositiveButton(R.string.update_available_install) { _, _ -> installUpdate(update) }
+			.setPositiveButton(R.string.update_available_install) { _, _ -> install = true }
 			.setNegativeButton(R.string.update_available_later, null)
 			.setCancelable(true)
 			.setOnDismissListener { dismissed.complete(Unit) }
@@ -154,32 +157,48 @@ class StartupActivity : FragmentActivity() {
 		// Suspend until the dialog is dismissed (Install now, Later, cancel, or back press all
 		// trigger the dismiss listener above) so navigation can't proceed while it's on screen.
 		dismissed.await()
+
+		// Installing is awaited too, so navigation can't finish this activity (cancelling the
+		// download) or race the user returning from the install permission settings.
+		if (install) installUpdate(update)
 	}
 
-	private fun installUpdate(update: UpdateCheckResult.UpdateAvailable) {
-		// canRequestPackageInstalls()/ACTION_MANAGE_UNKNOWN_APP_SOURCES are API 26+; below that,
-		// "install from unknown sources" is a single device-wide legacy setting we can't query
-		// or deep-link to per-app, so just attempt the install directly.
-		if (AndroidVersion.isAtLeastO && !packageManager.canRequestPackageInstalls()) {
-			Toast.makeText(this, R.string.update_available_permission_required, Toast.LENGTH_LONG).show()
-			startActivity(
-				Intent(
-					Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-					Uri.parse("package:$packageName")
-				)
-			)
-			return
+	private suspend fun installUpdate(update: UpdateCheckResult.UpdateAvailable) {
+		val permissionGate = InstallPermissionGate(
+			// canRequestPackageInstalls()/ACTION_MANAGE_UNKNOWN_APP_SOURCES are API 26+; below that,
+			// "install from unknown sources" is a single device-wide legacy setting we can't query
+			// or deep-link to per-app, so just attempt the install directly.
+			canInstall = { !AndroidVersion.isAtLeastO || packageManager.canRequestPackageInstalls() },
+			openSettings = ::openInstallPermissionSettings,
+			awaitReturn = {
+				lifecycle.currentStateFlow.first { it < Lifecycle.State.RESUMED }
+				lifecycle.currentStateFlow.first { it == Lifecycle.State.RESUMED }
+			},
+		)
+		if (!permissionGate.ensurePermission()) return
+
+		Toast.makeText(this, R.string.update_available_downloading, Toast.LENGTH_LONG).show()
+		val installer = UpdateInstaller(applicationContext)
+		val apkFile = installer.downloadApk(update.apkDownloadUrl, update.apkAssetName)
+
+		if (apkFile == null) {
+			Toast.makeText(this, R.string.update_available_download_failed, Toast.LENGTH_LONG).show()
+		} else {
+			installer.startInstall(apkFile)
 		}
+	}
 
-		lifecycleScope.launch {
-			val installer = UpdateInstaller(applicationContext)
-			val apkFile = installer.downloadApk(update.apkDownloadUrl, update.apkAssetName)
+	private fun openInstallPermissionSettings(): Boolean {
+		// Google TV opens the list of all apps instead of this app's entry, so name the app to look for
+		val message = getString(R.string.update_available_permission_required, getString(R.string.app_name))
+		Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
-			if (apkFile == null) {
-				Toast.makeText(this@StartupActivity, R.string.update_available_download_failed, Toast.LENGTH_LONG).show()
-			} else {
-				installer.startInstall(apkFile)
-			}
+		return try {
+			startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+			true
+		} catch (error: ActivityNotFoundException) {
+			Timber.w(error, "No activity to manage unknown app sources")
+			false
 		}
 	}
 
