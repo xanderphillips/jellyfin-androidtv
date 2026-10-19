@@ -1,7 +1,6 @@
 package org.jellyfin.androidtv.ui.presentation
 
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -24,31 +23,14 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.ui.GridButton
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.itemhandling.GridButtonBaseRowItem
-import org.jellyfin.androidtv.util.setFocusOnTap
 
 class GridButtonPresenter @JvmOverloads constructor(
 	private val width: Int = 110,
 	private val imageHeight: Int = 110,
 ) : Presenter() {
-	private class ComposeViewWrapper(composeView: ComposeView) : FrameLayout(composeView.context) {
-		init {
-			isFocusable = true
-			isFocusableInTouchMode = true
-			setFocusOnTap()
-			descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-			addView(composeView)
-		}
-
-		// Hack to prevent Compose crash with leanback presenters
-		override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-			if (isAttachedToWindow) super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-			else setMeasuredDimension(widthMeasureSpec, heightMeasureSpec)
-		}
-	}
-
 	inner class ViewHolder(
 		private val composeView: ComposeView,
-	) : Presenter.ViewHolder(ComposeViewWrapper(composeView)) {
+	) : Presenter.ViewHolder(ComposeCardContainer(composeView.context).apply { addView(composeView) }) {
 		fun bind(value: GridButton) = composeView.setContent {
 			Box(
 				modifier = Modifier
@@ -80,11 +62,7 @@ class GridButtonPresenter @JvmOverloads constructor(
 	}
 
 	override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
-		val view = ComposeView(parent.context).apply {
-			isFocusable = true
-		}
-
-		return ViewHolder(view)
+		return ViewHolder(ComposeView(parent.context))
 	}
 
 	override fun onBindViewHolder(viewHolder: Presenter.ViewHolder, item: Any?) {
