@@ -49,7 +49,6 @@ import org.jellyfin.androidtv.util.ImageHelper
 import org.jellyfin.androidtv.util.apiclient.JellyfinImage
 import org.jellyfin.androidtv.util.apiclient.getUrl
 import org.jellyfin.androidtv.util.getActivity
-import org.jellyfin.androidtv.util.setFocusOnTap
 import org.jellyfin.design.Tokens
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -71,13 +70,6 @@ class CardPresenter(
 			setParentCompositionContext(parent.findViewTreeCompositionContext())
 			setViewTreeLifecycleOwner(parent.findViewTreeLifecycleOwner())
 			setViewTreeSavedStateRegistryOwner(parent.findViewTreeSavedStateRegistryOwner())
-			isFocusable = true
-			isFocusableInTouchMode = true
-			setFocusOnTap()
-
-			setOnLongClickListener {
-				context.getActivity()?.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MENU)) ?: false
-			}
 		}
 
 		return CardViewHolder(view)
@@ -96,7 +88,9 @@ class CardPresenter(
 		viewHolder.unbind()
 	}
 
-	private inner class CardViewHolder(composeView: ComposeView) : ViewHolder(composeView) {
+	private inner class CardViewHolder(
+		composeView: ComposeView,
+	) : ViewHolder(ComposeCardContainer(composeView.context).apply { addView(composeView) }) {
 		private val _item = MutableStateFlow<BaseRowItem?>(null)
 		private val _focused = MutableStateFlow(false)
 
@@ -116,7 +110,10 @@ class CardPresenter(
 			}
 
 			_focused.value = view.isFocused
-			composeView.onFocusChangeListener = { _, focused -> _focused.value = focused }
+			view.onFocusChangeListener = { _, focused -> _focused.value = focused }
+			view.setOnLongClickListener {
+				view.context.getActivity()?.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MENU)) ?: false
+			}
 		}
 
 		fun bind(item: BaseRowItem) {
