@@ -49,6 +49,7 @@ import org.jellyfin.androidtv.util.ImageHelper
 import org.jellyfin.androidtv.util.apiclient.JellyfinImage
 import org.jellyfin.androidtv.util.apiclient.getUrl
 import org.jellyfin.androidtv.util.getActivity
+import org.jellyfin.androidtv.util.setFocusOnTap
 import org.jellyfin.design.Tokens
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -72,6 +73,7 @@ class CardPresenter(
 			setViewTreeSavedStateRegistryOwner(parent.findViewTreeSavedStateRegistryOwner())
 			isFocusable = true
 			isFocusableInTouchMode = true
+			setFocusOnTap()
 
 			setOnLongClickListener {
 				context.getActivity()?.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MENU)) ?: false

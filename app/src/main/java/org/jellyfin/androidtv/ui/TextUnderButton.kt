@@ -10,6 +10,7 @@ import androidx.core.view.setPadding
 import org.jellyfin.androidtv.databinding.TextUnderButtonBinding
 import org.jellyfin.androidtv.util.AndroidVersion
 import org.jellyfin.androidtv.util.dp
+import org.jellyfin.androidtv.util.setFocusOnTap
 
 class TextUnderButton @JvmOverloads constructor(
 	context: Context,
@@ -22,6 +23,7 @@ class TextUnderButton @JvmOverloads constructor(
 	init {
 		isFocusable = true
 		isFocusableInTouchMode = true
+		setFocusOnTap()
 		descendantFocusability = FOCUS_BLOCK_DESCENDANTS
 		if (AndroidVersion.isAtLeastO) defaultFocusHighlightEnabled = false
 	}
