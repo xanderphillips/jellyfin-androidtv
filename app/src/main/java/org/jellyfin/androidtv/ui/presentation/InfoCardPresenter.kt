@@ -3,6 +3,7 @@ package org.jellyfin.androidtv.ui.presentation
 import android.view.ViewGroup
 import androidx.leanback.widget.Presenter
 import org.jellyfin.androidtv.ui.card.MediaInfoCardView
+import org.jellyfin.androidtv.util.setFocusOnTap
 import org.jellyfin.sdk.model.api.MediaStream
 
 class InfoCardPresenter : Presenter() {
@@ -16,6 +17,7 @@ class InfoCardPresenter : Presenter() {
 		val view = MediaInfoCardView(parent.context).apply {
 			isFocusable = true
 			isFocusableInTouchMode = true
+			setFocusOnTap()
 		}
 
 		return ViewHolder(view)

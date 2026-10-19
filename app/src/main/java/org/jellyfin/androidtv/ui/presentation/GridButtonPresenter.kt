@@ -24,6 +24,7 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.ui.GridButton
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.itemhandling.GridButtonBaseRowItem
+import org.jellyfin.androidtv.util.setFocusOnTap
 
 class GridButtonPresenter @JvmOverloads constructor(
 	private val width: Int = 110,
@@ -33,6 +34,7 @@ class GridButtonPresenter @JvmOverloads constructor(
 		init {
 			isFocusable = true
 			isFocusableInTouchMode = true
+			setFocusOnTap()
 			descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
 			addView(composeView)
 		}

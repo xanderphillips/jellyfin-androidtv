@@ -5,10 +5,12 @@ import android.view.ViewGroup
 import androidx.leanback.widget.Presenter
 import org.jellyfin.androidtv.data.model.AppNotification
 import org.jellyfin.androidtv.databinding.ViewCardNotificationBinding
+import org.jellyfin.androidtv.util.setFocusOnTap
 
 class AppNotificationPresenter : Presenter() {
 	override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
 		val binding = ViewCardNotificationBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+		binding.root.setFocusOnTap()
 		return AppNotificationViewHolder(binding)
 	}
 

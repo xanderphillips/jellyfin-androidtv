@@ -5,6 +5,7 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.leanback.widget.Presenter
+import org.jellyfin.androidtv.util.setFocusOnTap
 
 class TextItemPresenter : Presenter() {
 	companion object {
@@ -18,6 +19,7 @@ class TextItemPresenter : Presenter() {
 			layoutParams = ViewGroup.LayoutParams(ITEM_WIDTH, ITEM_HEIGHT)
 			isFocusable = true
 			isFocusableInTouchMode = true
+			setFocusOnTap()
 			setTextColor(Color.WHITE)
 			gravity = Gravity.CENTER
 			textSize = TEXT_SIZE
