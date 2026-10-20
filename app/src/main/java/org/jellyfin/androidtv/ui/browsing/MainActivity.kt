@@ -152,8 +152,12 @@ class MainActivity : FragmentActivity() {
 
 	override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
 		InputDebugLog.motion("Activity.dispatchTouchEvent", this, ev)
-		return super.dispatchTouchEvent(ev)
+		return supportFragmentManager.fragments.any { it.forwardPointerTouch(ev) } || super.dispatchTouchEvent(ev)
 	}
+
+	private fun Fragment.forwardPointerTouch(event: MotionEvent): Boolean =
+		(this is CustomPlaybackOverlayFragment && onPointerTouch(event)) ||
+			childFragmentManager.fragments.any { it.forwardPointerTouch(event) }
 
 	override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
 		InputDebugLog.motion("Activity.dispatchGenericMotionEvent", this, ev)

@@ -13,6 +13,7 @@ import android.view.KeyEvent;
 import android.view.InputDevice;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
+import android.view.ViewConfiguration;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -119,6 +120,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     private Animation showPopup;
     private Animation hidePopup;
     private final Handler mHandler = new Handler();
+    private final ScrollSeekMapper scrollSeek = new ScrollSeekMapper(0.1f, 275L);
     private final StickSeekRepeater stickSeek = new StickSeekRepeater(0.6f, 0.3f, 450L, 300L);
     private final Runnable stickSeekTick = new Runnable() {
         @Override
@@ -700,6 +702,15 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
             InputDebugLog.INSTANCE.state("Fragment.onJoystickMotion", "gate1 return: resumed=" + isResumed() + " guide=" + mGuideVisible + " popup=" + mPopupPanelVisible);
             return false;
         }
+        if ((event.getActionMasked() == MotionEvent.ACTION_HOVER_MOVE || event.getActionMasked() == MotionEvent.ACTION_HOVER_ENTER)
+                && mFadeEnabled && leanbackOverlayFragment != null && leanbackOverlayFragment.isControlsOverlayVisible()) {
+            // Keep the controls up while the pointer is moving over the player
+            startFadeTimer();
+        }
+        if (event.getActionMasked() == MotionEvent.ACTION_SCROLL
+                && (event.getSource() & InputDevice.SOURCE_CLASS_POINTER) != 0) {
+            return onPointerScroll(event);
+        }
         if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK
                 || event.getActionMasked() != MotionEvent.ACTION_MOVE) {
             InputDebugLog.INSTANCE.state("Fragment.onJoystickMotion", "gate2 return: not joystick MOVE source=0x" + Integer.toHexString(event.getSource()) + " action=" + event.getActionMasked());
@@ -722,6 +733,107 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         if (result.getAction() != null) performInputAction(result.getAction());
         if (stickSeek.isEngaged() && !wasEngaged) mHandler.postDelayed(stickSeekTick, 50);
         return result.getConsumed();
+    }
+
+    /**
+     * Meta Quest reports the left thumbstick as pointer scroll events; left/right skips. Anything that
+     * is not a horizontal push on a seekable video is left for the framework (e.g. list scrolling).
+     */
+    private boolean onPointerScroll(MotionEvent event) {
+        PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+        float h = event.getAxisValue(MotionEvent.AXIS_HSCROLL);
+        float v = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
+        if (controller == null || !controller.canSeek() || !scrollSeek.isHorizontalPush(h, v)) {
+            InputDebugLog.INSTANCE.state("Fragment.onPointerScroll", "ignored h=" + h + " v=" + v);
+            return false;
+        }
+        PlaybackInputAction action = scrollSeek.onScroll(h, android.os.SystemClock.uptimeMillis());
+        InputDebugLog.INSTANCE.state("Fragment.onPointerScroll", "h=" + h + " action=" + action);
+        if (action != null) performInputAction(action);
+        return true;
+    }
+
+    private float tapDownX;
+    private float tapDownY;
+    private long tapDownTime;
+    private boolean tapOnControl;
+    private boolean scrubbing;
+    private View scrubBar;
+
+    /**
+     * Called for every touch event the activity receives. Taps on the video toggle the controls, and
+     * touching or dragging the seek bar scrubs, committing the seek on release. Returns true when the
+     * event was used for scrubbing so the seek bar does not also treat it as a click.
+     */
+    public boolean onPointerTouch(@NonNull MotionEvent event) {
+        if (!isResumed() || leanbackOverlayFragment == null) return false;
+        PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+        if (controller == null) return false;
+
+        // Keep the controls up while the pointer is interacting
+        if (mFadeEnabled && leanbackOverlayFragment.isControlsOverlayVisible()) startFadeTimer();
+
+        boolean popupOrGuide = mGuideVisible || mPopupPanelVisible;
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                tapDownX = event.getRawX();
+                tapDownY = event.getRawY();
+                tapDownTime = event.getEventTime();
+                scrubbing = false;
+                scrubBar = null;
+                View bar = popupOrGuide || !controller.canSeek() || !leanbackOverlayFragment.isControlsOverlayVisible()
+                        ? null : PlaybackPointerHelperKt.findVisibleViewById(requireActivity().getWindow().getDecorView(),
+                        androidx.leanback.R.id.playback_progress, event.getRawX(), event.getRawY());
+                if (bar != null) {
+                    scrubbing = true;
+                    scrubBar = bar;
+                    updateScrub(event, controller, false);
+                    return true;
+                }
+                tapOnControl = PlaybackPointerHelperKt.isClickableAt(requireActivity().getWindow().getDecorView(), event.getRawX(), event.getRawY());
+                return false;
+            case MotionEvent.ACTION_MOVE:
+                if (!scrubbing) return false;
+                updateScrub(event, controller, false);
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (scrubbing) {
+                    updateScrub(event, controller, true);
+                    scrubbing = false;
+                    scrubBar = null;
+                    return true;
+                }
+                float slop = ViewConfiguration.get(requireContext()).getScaledTouchSlop();
+                boolean tap = PointerPlayback.INSTANCE.isTap(event.getRawX() - tapDownX, event.getRawY() - tapDownY,
+                        event.getEventTime() - tapDownTime, slop, 500L);
+                if (PointerPlayback.INSTANCE.shouldToggleControlsOnTap(tap, tapOnControl, popupOrGuide)) {
+                    InputDebugLog.INSTANCE.state("Fragment.onPointerTouch", "tap toggles controls");
+                    performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
+                }
+                return false;
+            case MotionEvent.ACTION_CANCEL:
+                scrubbing = false;
+                scrubBar = null;
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    private void updateScrub(MotionEvent event, PlaybackController controller, boolean commit) {
+        if (scrubBar == null) return;
+        int[] loc = new int[2];
+        scrubBar.getLocationOnScreen(loc);
+        long duration = controller.getDuration();
+        long position = PointerPlayback.INSTANCE.seekPositionMs(event.getRawX(), loc[0], scrubBar.getWidth(), duration);
+        if (scrubBar instanceof androidx.leanback.widget.SeekBar && duration > 0) {
+            androidx.leanback.widget.SeekBar seekBar = (androidx.leanback.widget.SeekBar) scrubBar;
+            seekBar.setProgress((int) (position * seekBar.getMax() / duration));
+        }
+        if (commit) {
+            InputDebugLog.INSTANCE.state("Fragment.onPointerTouch", "scrub commit " + position + "ms of " + duration);
+            controller.seek(position);
+        }
     }
 
     public LocalDateTime getCurrentLocalStartDate() {
@@ -788,6 +900,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     public void onPause() {
         super.onPause();
         stickSeek.reset();
+        scrollSeek.reset();
         mHandler.removeCallbacks(stickSeekTick);
         if (mItemsToPlay == null || mItemsToPlay.isEmpty()) return;
 
