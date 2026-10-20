@@ -172,3 +172,30 @@ object PointerPlayback {
 		return (fraction * durationMs).toLong()
 	}
 }
+
+/**
+ * Collects skip requests from repeated clicks on the rewind and fast-forward buttons into one seek that
+ * is issued once the clicks have stopped for [quietMs]. A seek that could not be issued is put back.
+ */
+class SkipAccumulator(private val quietMs: Long = 400L) {
+	private var pendingMs = 0
+	private var lastChangeAt = 0L
+
+	val hasPending get() = pendingMs != 0
+
+	fun add(deltaMs: Int, nowMs: Long) {
+		pendingMs += deltaMs
+		lastChangeAt = nowMs
+	}
+
+	/** The accumulated skip once no click has arrived for [quietMs], else null. Clears the accumulator. */
+	fun takeIfQuiet(nowMs: Long): Int? {
+		if (pendingMs == 0 || nowMs - lastChangeAt < quietMs) return null
+		return pendingMs.also { pendingMs = 0 }
+	}
+
+	/** Puts a skip back after the player refused it (for example, a seek was still running). */
+	fun restore(deltaMs: Int) {
+		pendingMs += deltaMs
+	}
+}

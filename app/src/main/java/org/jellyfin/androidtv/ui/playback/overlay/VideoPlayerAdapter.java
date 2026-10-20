@@ -1,10 +1,16 @@
 package org.jellyfin.androidtv.ui.playback.overlay;
 
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+
 import androidx.annotation.NonNull;
 import androidx.leanback.media.PlayerAdapter;
 
 import org.jellyfin.androidtv.auth.repository.UserRepository;
+import org.jellyfin.androidtv.preference.UserSettingPreferences;
 import org.jellyfin.androidtv.ui.playback.CustomPlaybackOverlayFragment;
+import org.jellyfin.androidtv.ui.playback.SkipAccumulator;
 import org.jellyfin.androidtv.ui.playback.PlaybackController;
 import org.jellyfin.androidtv.util.Utils;
 import org.jellyfin.androidtv.util.apiclient.StreamHelper;
@@ -14,11 +20,18 @@ import org.koin.java.KoinJavaComponent;
 
 import java.util.List;
 
+import kotlin.Lazy;
+
 public class VideoPlayerAdapter extends PlayerAdapter {
 
     private final PlaybackController playbackController;
     private CustomPlaybackOverlayFragment customPlaybackOverlayFragment;
     private LeanbackOverlayFragment leanbackOverlayFragment;
+    private final Lazy<UserSettingPreferences> userSettingPreferences = KoinJavaComponent.inject(UserSettingPreferences.class);
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final SkipAccumulator skipAccumulator = new SkipAccumulator(400L);
+    private static final int MAX_SKIP_RETRIES = 30;
+    private int skipRetries = 0;
 
     VideoPlayerAdapter(PlaybackController playbackController, LeanbackOverlayFragment leanbackOverlayFragment) {
         this.playbackController = playbackController;
@@ -37,15 +50,49 @@ public class VideoPlayerAdapter extends PlayerAdapter {
 
     @Override
     public void rewind() {
+        if (customPlaybackOverlayFragment != null && customPlaybackOverlayFragment.consumePointerControlClick()) {
+            queuePointerSkip(-userSettingPreferences.getValue().get(UserSettingPreferences.Companion.getSkipBackLength()));
+            return;
+        }
         playbackController.rewind();
         updateCurrentPosition();
     }
 
     @Override
     public void fastForward() {
+        if (customPlaybackOverlayFragment != null && customPlaybackOverlayFragment.consumePointerControlClick()) {
+            queuePointerSkip(userSettingPreferences.getValue().get(UserSettingPreferences.Companion.getSkipForwardLength()));
+            return;
+        }
         playbackController.fastForward();
         updateCurrentPosition();
     }
+
+    /**
+     * Pointer clicks on rewind/fast-forward are collected for a moment and sent as one seek, retried
+     * briefly if the player is still busy with the previous one. Remote and gamepad skips are unaffected.
+     */
+    private void queuePointerSkip(int deltaMs) {
+        skipAccumulator.add(deltaMs, SystemClock.uptimeMillis());
+        skipRetries = 0;
+        handler.removeCallbacks(pointerSkipTick);
+        handler.postDelayed(pointerSkipTick, 100);
+    }
+
+    private final Runnable pointerSkipTick = new Runnable() {
+        @Override
+        public void run() {
+            Integer delta = skipAccumulator.takeIfQuiet(SystemClock.uptimeMillis());
+            if (delta != null) {
+                if (playbackController.skipNow(delta)) {
+                    updateCurrentPosition();
+                } else if (skipRetries++ < MAX_SKIP_RETRIES) {
+                    skipAccumulator.restore(delta);
+                }
+            }
+            if (skipAccumulator.getHasPending()) handler.postDelayed(this, 100);
+        }
+    };
 
     @Override
     public void seekTo(long positionInMs) {

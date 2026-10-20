@@ -117,4 +117,41 @@ class PointerPlaybackInputTest : FunSpec({
 			PointerPlayback.seekPositionMs(300f, 100f, 400f, 0) shouldBe 0
 		}
 	}
+
+	context("skip accumulator") {
+		test("nothing is due before any click or while clicks are still arriving") {
+			val a = SkipAccumulator(quietMs = 400)
+			a.takeIfQuiet(10_000) shouldBe null
+			a.add(30_000, 1_000)
+			a.takeIfQuiet(1_200) shouldBe null
+			a.hasPending shouldBe true
+		}
+
+		test("rapid clicks accumulate into one skip after the quiet period") {
+			val a = SkipAccumulator(quietMs = 400)
+			a.add(30_000, 1_000)
+			a.add(30_000, 1_300)
+			a.add(30_000, 1_600)
+			a.takeIfQuiet(1_900) shouldBe null
+			a.takeIfQuiet(2_000) shouldBe 90_000
+			a.hasPending shouldBe false
+			a.takeIfQuiet(5_000) shouldBe null
+		}
+
+		test("forward and back clicks cancel out") {
+			val a = SkipAccumulator(quietMs = 400)
+			a.add(30_000, 0)
+			a.add(-10_000, 100)
+			a.takeIfQuiet(600) shouldBe 20_000
+		}
+
+		test("a refused skip can be put back and is due again") {
+			val a = SkipAccumulator(quietMs = 400)
+			a.add(30_000, 0)
+			a.takeIfQuiet(500) shouldBe 30_000
+			a.restore(30_000)
+			a.hasPending shouldBe true
+			a.takeIfQuiet(600) shouldBe 30_000
+		}
+	}
 })

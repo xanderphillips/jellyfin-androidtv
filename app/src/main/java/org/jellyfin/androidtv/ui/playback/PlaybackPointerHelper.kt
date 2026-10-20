@@ -17,28 +17,20 @@ fun findVisibleViewById(root: View, id: Int, rawX: Float, rawY: Float): View? {
 }
 
 /**
- * True when the topmost visible view at the raw point, or a parent smaller than [PointerPlayback.isContainerSized],
- * is clickable or focusable. Leanback's control buttons are focusable views, and the screen-sized
- * containers around them are ignored so only real controls count.
+ * True when any visible view at the raw point that is smaller than [PointerPlayback.isContainerSized] is
+ * clickable or focusable. Every overlapping view is checked, so a transparent screen-sized view stacked above
+ * a Leanback control button does not hide the button from the test.
  */
 fun isControlAt(root: View, rawX: Float, rawY: Float): Boolean {
-	var view: View? = topViewAt(root, rawX, rawY)
-	while (view != null && view !== root) {
-		if (PointerPlayback.isContainerSized(view.width, view.height, root.width, root.height)) return false
-		if (view.isClickable || view.isFocusable) return true
-		view = view.parent as? View
-	}
-	return false
-}
-
-private fun topViewAt(view: View, rawX: Float, rawY: Float): View? {
-	if (view.visibility != View.VISIBLE || view.alpha == 0f || !view.containsRawPoint(rawX, rawY)) return null
-	if (view is ViewGroup) {
-		for (i in view.childCount - 1 downTo 0) {
-			topViewAt(view.getChildAt(i), rawX, rawY)?.let { return it }
+	if (root.visibility != View.VISIBLE || root.alpha == 0f || !root.containsRawPoint(rawX, rawY)) return false
+	val isContainer = PointerPlayback.isContainerSized(root.width, root.height, root.rootView.width, root.rootView.height)
+	if (!isContainer && (root.isClickable || root.isFocusable)) return true
+	if (root is ViewGroup) {
+		for (i in 0 until root.childCount) {
+			if (isControlAt(root.getChildAt(i), rawX, rawY)) return true
 		}
 	}
-	return view
+	return false
 }
 
 private fun View.containsRawPoint(rawX: Float, rawY: Float): Boolean {

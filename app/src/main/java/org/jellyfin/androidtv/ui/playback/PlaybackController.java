@@ -26,6 +26,7 @@ import org.jellyfin.androidtv.preference.constant.ZoomMode;
 import org.jellyfin.androidtv.ui.InteractionTrackerViewModel;
 import org.jellyfin.androidtv.ui.livetv.TvManager;
 import org.jellyfin.androidtv.util.TimeUtils;
+import org.jellyfin.androidtv.util.InputDebugLog;
 import org.jellyfin.androidtv.util.Utils;
 import org.jellyfin.androidtv.util.apiclient.ReportingHelper;
 import org.jellyfin.androidtv.util.apiclient.Response;
@@ -971,11 +972,14 @@ public class PlaybackController implements PlaybackControllerNotifiable {
      * Skips relative to the current position right away, without the delayed coalescing of skip(). Does nothing
      * while a previous seek is still in progress so repeated requests cannot queue up.
      */
-    public void skipNow(int msec) {
+    public boolean skipNow(int msec) {
         if (!hasInitializedVideoManager() || !(isPlaying() || isPaused()) || !spinnerOff || wasSeeking
-                || mVideoManager.getCurrentPosition() <= 0) return;
+                || mVideoManager.getCurrentPosition() <= 0) return false;
         refreshCurrentPosition();
+        InputDebugLog.INSTANCE.state("PlaybackController.skipNow", "msec=" + msec + " playMethod="
+                + (mCurrentStreamInfo == null ? "unknown" : mCurrentStreamInfo.getPlayMethod()) + " seekable=" + mVideoManager.isSeekable());
         seek(Utils.getSafeSeekPosition(mCurrentPosition + msec, getDuration()));
+        return true;
     }
 
     public void rewind() {

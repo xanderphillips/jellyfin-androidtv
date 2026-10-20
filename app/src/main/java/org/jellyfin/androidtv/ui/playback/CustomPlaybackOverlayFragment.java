@@ -757,6 +757,16 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         return true;
     }
 
+    private long pointerControlUpAt = Long.MIN_VALUE;
+
+    /** True if a pointer press on an overlay control just ended, i.e. the click being handled came from the pointer. */
+    public boolean consumePointerControlClick() {
+        boolean recent = pointerControlUpAt != Long.MIN_VALUE
+                && android.os.SystemClock.uptimeMillis() - pointerControlUpAt < 500L;
+        pointerControlUpAt = Long.MIN_VALUE;
+        return recent;
+    }
+
     private float tapDownX;
     private float tapDownY;
     private long tapDownTime;
@@ -794,7 +804,9 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                     updateScrub(event, controller, false);
                     return true;
                 }
-                tapOnControl = PlaybackPointerHelperKt.isControlAt(requireActivity().getWindow().getDecorView(), event.getRawX(), event.getRawY());
+                tapOnControl = leanbackOverlayFragment.isControlsOverlayVisible()
+                        && PlaybackPointerHelperKt.isControlAt(requireActivity().getWindow().getDecorView(), event.getRawX(), event.getRawY());
+                InputDebugLog.INSTANCE.state("Fragment.onPointerTouch", "down overlayVisible=" + leanbackOverlayFragment.isControlsOverlayVisible() + " hitControl=" + tapOnControl);
                 return false;
             case MotionEvent.ACTION_MOVE:
                 if (!scrubbing) return false;
@@ -807,6 +819,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                     scrubBar = null;
                     return true;
                 }
+                if (tapOnControl) pointerControlUpAt = event.getEventTime();
                 float slop = ViewConfiguration.get(requireContext()).getScaledTouchSlop();
                 boolean tap = PointerPlayback.INSTANCE.isTap(event.getRawX() - tapDownX, event.getRawY() - tapDownY,
                         event.getEventTime() - tapDownTime, slop, 500L);
