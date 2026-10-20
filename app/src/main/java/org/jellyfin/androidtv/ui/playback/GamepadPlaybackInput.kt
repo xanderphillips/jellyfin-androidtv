@@ -86,3 +86,51 @@ class StickSeekRepeater(
 
 	private fun actionFor(dir: Int) = if (dir > 0) PlaybackInputAction.SEEK_FORWARD else PlaybackInputAction.SEEK_BACKWARD
 }
+
+/**
+ * Meta Quest delivers the left thumbstick to 2D apps as pointer-class ACTION_SCROLL events whose
+ * AXIS_HSCROLL is small (roughly 0.1 to 0.3) and repeats while the stick is held. Negative skips
+ * backward and positive skips forward. Steps are rate limited so a held stick gives a steady pace.
+ */
+class ScrollSeekMapper(
+	private val deadZone: Float = 0.1f,
+	private val minIntervalMs: Long = 275L,
+) {
+	private var lastStepAt = Long.MIN_VALUE
+
+	/** True when the scroll is mostly horizontal and big enough to be a deliberate push. */
+	fun isHorizontalPush(hScroll: Float, vScroll: Float) = abs(hScroll) >= deadZone && abs(hScroll) >= abs(vScroll)
+
+	/** The step for this scroll event, or null when it is inside the dead zone or too soon after the last step. */
+	fun onScroll(hScroll: Float, nowMs: Long): PlaybackInputAction? {
+		if (abs(hScroll) < deadZone) return null
+		if (lastStepAt != Long.MIN_VALUE && nowMs - lastStepAt < minIntervalMs) return null
+		lastStepAt = nowMs
+		return if (hScroll > 0) PlaybackInputAction.SEEK_FORWARD else PlaybackInputAction.SEEK_BACKWARD
+	}
+
+	fun reset() {
+		lastStepAt = Long.MIN_VALUE
+	}
+}
+
+/** Decisions for pointer (touchscreen/mouse) interaction with the playback screen. */
+object PointerPlayback {
+	/** A tap on the video toggles the controls unless it landed on a control or a popup/guide is open. */
+	fun shouldToggleControlsOnTap(
+		isTap: Boolean,
+		hitControl: Boolean,
+		popupOrGuideVisible: Boolean,
+	) = isTap && !hitControl && !popupOrGuideVisible
+
+	/** A gesture is a tap when it ended close to where it started and quickly. */
+	fun isTap(dx: Float, dy: Float, durationMs: Long, slopPx: Float, maxDurationMs: Long = 500L) =
+		abs(dx) <= slopPx && abs(dy) <= slopPx && durationMs <= maxDurationMs
+
+	/** Maps a horizontal touch position on the seek bar to a playback position in milliseconds. */
+	fun seekPositionMs(x: Float, barLeft: Float, barWidth: Float, durationMs: Long): Long {
+		if (barWidth <= 0f || durationMs <= 0L) return 0L
+		val fraction = ((x - barLeft) / barWidth).coerceIn(0f, 1f)
+		return (fraction * durationMs).toLong()
+	}
+}
