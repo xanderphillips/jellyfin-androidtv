@@ -24,8 +24,9 @@ class PointerPlaybackInputTest : FunSpec({
 			// events arrive about every 16 ms while held
 			for (t in 16L..592L step 16) m.onScroll(-0.25f, t) shouldBe null
 			m.onScroll(-0.25f, 608) shouldBe PlaybackInputAction.SEEK_BACKWARD
-			for (t in 624L..1040L step 16) m.onScroll(-0.25f, t) shouldBe null
-			m.onScroll(-0.25f, 1_056) shouldBe PlaybackInputAction.SEEK_BACKWARD
+			// the repeat at 608 schedules the next one for 608 + 450 = 1058, so 1056 is still too early
+			for (t in 624L..1056L step 16) m.onScroll(-0.25f, t) shouldBe null
+			m.onScroll(-0.25f, 1_072) shouldBe PlaybackInputAction.SEEK_BACKWARD
 		}
 
 		test("a pause between pushes starts a new push with an immediate step") {
