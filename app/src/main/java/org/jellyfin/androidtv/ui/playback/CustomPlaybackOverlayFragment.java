@@ -692,11 +692,11 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
 
         switch (action) {
             case SEEK_FORWARD:
-                queueStickSkip(org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipForwardLength())));
+                queueStickSkip(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getSkipForwardLength()));
                 setFadingEnabled(true);
                 return true;
             case SEEK_BACKWARD:
-                queueStickSkip(-org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipBackLength())));
+                queueStickSkip(-userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getSkipBackLength()));
                 setFadingEnabled(true);
                 return true;
             case PLAY_PAUSE:

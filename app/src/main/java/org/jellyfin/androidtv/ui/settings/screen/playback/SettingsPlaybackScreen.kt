@@ -15,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.repository.ExternalAppRepository
+import org.jellyfin.androidtv.preference.SkipLengths
 import org.jellyfin.androidtv.preference.UserPreferences
+import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.base.Icon
 import org.jellyfin.androidtv.ui.base.LocalShapes
 import org.jellyfin.androidtv.ui.base.Text
@@ -29,17 +31,47 @@ import org.jellyfin.androidtv.ui.settings.composable.SettingsColumn
 import org.koin.compose.koinInject
 
 @Composable
+private fun formatSkipLength(ms: Int): String {
+	val wholeMinutes = ms >= SkipLengths.MS_PER_MINUTE && ms % SkipLengths.MS_PER_MINUTE == 0
+	return if (wholeMinutes) stringResource(R.string.skip_length_minutes, ms / SkipLengths.MS_PER_MINUTE)
+	else stringResource(R.string.skip_length_seconds, ms / SkipLengths.MS_PER_SECOND)
+}
+
+@Composable
 fun SettingsPlaybackScreen() {
 	val context = LocalContext.current
 	val router = LocalRouter.current
 	val externalAppRepository = koinInject<ExternalAppRepository>()
 	val userPreferences = koinInject<UserPreferences>()
+	val userSettingPreferences = koinInject<UserSettingPreferences>()
 
 	SettingsColumn {
 		item {
 			ListSection(
 				overlineContent = { Text(stringResource(R.string.settings).uppercase()) },
 				headingContent = { Text(stringResource(R.string.pref_playback)) },
+			)
+		}
+
+		item {
+			var skipBackLength by rememberPreference(userSettingPreferences, UserSettingPreferences.skipBackLength)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.skip_back_length)) },
+				captionContent = { Text(formatSkipLength(skipBackLength)) },
+				onClick = { skipBackLength = SkipLengths.next(skipBackLength) },
+				modifier = Modifier.focusKey("skip_back_length")
+			)
+		}
+
+		item {
+			var skipForwardLength by rememberPreference(userSettingPreferences, UserSettingPreferences.skipForwardLength)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.skip_forward_length)) },
+				captionContent = { Text(formatSkipLength(skipForwardLength)) },
+				onClick = { skipForwardLength = SkipLengths.next(skipForwardLength) },
+				modifier = Modifier.focusKey("skip_forward_length")
 			)
 		}
 

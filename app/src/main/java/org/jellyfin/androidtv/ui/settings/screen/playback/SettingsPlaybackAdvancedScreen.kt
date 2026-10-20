@@ -20,7 +20,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.constant.getQualityProfiles
-import org.jellyfin.androidtv.preference.ThumbstickSkipLengths
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.base.Text
@@ -44,11 +43,6 @@ import org.koin.compose.koinInject
 import java.text.DecimalFormat
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
-
-@Composable
-private fun formatSkipLength(ms: Int): String =
-	if (ms >= ThumbstickSkipLengths.MS_PER_MINUTE) stringResource(R.string.skip_length_minutes, ms / ThumbstickSkipLengths.MS_PER_MINUTE)
-	else stringResource(R.string.skip_length_seconds, ms / ThumbstickSkipLengths.MS_PER_SECOND)
 
 @Composable
 fun SettingsPlaybackAdvancedScreen() {
@@ -76,65 +70,6 @@ fun SettingsPlaybackAdvancedScreen() {
 				captionContent = { Text(options[resumeSubtractDuration].orEmpty()) },
 				onClick = { router.push(Routes.PLAYBACK_RESUME_SUBTRACT_DURATION) },
 				modifier = Modifier.focusKey(Routes.PLAYBACK_RESUME_SUBTRACT_DURATION)
-			)
-		}
-
-		item {
-			var skipForwardLength by rememberPreference(userSettingPreferences, UserSettingPreferences.skipForwardLength)
-			val interactionSource = remember { MutableInteractionSource() }
-
-			ListControl(
-				headingContent = { Text(stringResource(R.string.skip_forward_length)) },
-				interactionSource = interactionSource,
-				modifier = Modifier.focusKey("skip_forward_length")
-			) {
-				Row(
-					verticalAlignment = Alignment.CenterVertically,
-				) {
-					RangeControl(
-						modifier = Modifier
-							.height(4.dp)
-							.weight(1f),
-						interactionSource = interactionSource,
-						// 5 - 30 seconds with 5 second increment
-						min = 5_000f,
-						max = 30_000f,
-						stepForward = 5_000f,
-						value = skipForwardLength.toFloat(),
-						onValueChange = { skipForwardLength = it.roundToInt() }
-					)
-
-					Spacer(Modifier.width(Tokens.Space.spaceSm))
-
-					Box(
-						modifier = Modifier.sizeIn(minWidth = 32.dp),
-						contentAlignment = Alignment.CenterEnd
-					) {
-						Text("${skipForwardLength / 1000}s")
-					}
-				}
-			}
-		}
-
-		item {
-			var skipBack by rememberPreference(userSettingPreferences, UserSettingPreferences.thumbstickSkipBackLength)
-
-			ListButton(
-				headingContent = { Text(stringResource(R.string.thumbstick_skip_back_length)) },
-				captionContent = { Text(formatSkipLength(ThumbstickSkipLengths.coerce(skipBack))) },
-				onClick = { skipBack = ThumbstickSkipLengths.next(skipBack) },
-				modifier = Modifier.focusKey("thumbstick_skip_back_length")
-			)
-		}
-
-		item {
-			var skipForward by rememberPreference(userSettingPreferences, UserSettingPreferences.thumbstickSkipForwardLength)
-
-			ListButton(
-				headingContent = { Text(stringResource(R.string.thumbstick_skip_forward_length)) },
-				captionContent = { Text(formatSkipLength(ThumbstickSkipLengths.coerce(skipForward))) },
-				onClick = { skipForward = ThumbstickSkipLengths.next(skipForward) },
-				modifier = Modifier.focusKey("thumbstick_skip_forward_length")
 			)
 		}
 
