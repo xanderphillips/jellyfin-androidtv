@@ -520,7 +520,7 @@
     <string name="pref_enable_media_management">Enable media management</string>
     <string name="pref_enable_media_management_description">Show option to manage media while browsing</string>
     <string name="item_delete_confirm_title">Delete item</string>
-    <string name="item_delete_confirm_message">Are you sure you want to delete this item from the server? This action cannot be undone.</string>
+    <string name="item_delete_confirm_message" tools:ignore="UnusedResources">Are you sure you want to delete this item from the server? This action cannot be undone.</string>
     <string name="item_delete_confirm_series">Delete series \'%1$s\' and all of its episodes from the server? This action cannot be undone.</string>
     <plurals name="item_delete_confirm_series_count">
         <item quantity="one">Delete series \'%1$s\' and its %2$d episode from the server? This action cannot be undone.</item>
@@ -594,7 +594,7 @@
     <string name="skip_forward_length">Skip forward length</string>
     <string name="thumbstick_skip_back_length">Thumbstick skip back length</string>
     <string name="thumbstick_skip_forward_length">Thumbstick skip forward length</string>
-    <string name="skip_length_seconds">%1$d sec</string>
+    <string name="skip_length_seconds" tools:ignore="PluralsCandidate">%1$d sec</string>
     <string name="skip_length_minutes">%1$d min</string>
     <string name="preference_enable_trickplay">Enable trickplay in video player</string>
     <string name="pref_subtitles_background_opacity">Subtitle background opacity</string>

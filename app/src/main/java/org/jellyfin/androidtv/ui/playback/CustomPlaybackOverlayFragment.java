@@ -686,7 +686,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
      * Left thumbstick (or hat) left/right seeks while a video is playing. Returns true when the event
      * was used so the framework does not also turn it into D-pad key presses.
      */
-    public boolean onJoystickMotion(MotionEvent event) {
+    public boolean onJoystickMotion(@NonNull MotionEvent event) {
         if (!isResumed() || mGuideVisible || mPopupPanelVisible) return false;
         if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK
                 || event.getActionMasked() != MotionEvent.ACTION_MOVE) return false;
