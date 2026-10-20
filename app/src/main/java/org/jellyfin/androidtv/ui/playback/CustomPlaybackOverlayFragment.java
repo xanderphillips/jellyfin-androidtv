@@ -652,6 +652,28 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                 + " overlay=" + (leanbackOverlayFragment != null && leanbackOverlayFragment.isControlsOverlayVisible()));
     }
 
+    private final SkipAccumulator stickSkips = new SkipAccumulator(0L);
+    private int stickSkipRetries = 0;
+    private final Runnable stickSkipTick = new Runnable() {
+        @Override
+        public void run() {
+            PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+            Integer delta = stickSkips.takeIfQuiet(android.os.SystemClock.uptimeMillis());
+            if (delta != null && controller != null) {
+                if (controller.skipNow(delta)) stickSkipRetries = 0;
+                else if (stickSkipRetries++ < 30) stickSkips.restore(delta);
+            }
+            if (stickSkips.getHasPending()) mHandler.postDelayed(this, 100);
+        }
+    };
+
+    /** Skips as soon as the player can seek; steps requested while a seek runs are added together instead of dropped. */
+    private void queueStickSkip(int deltaMs) {
+        stickSkips.add(deltaMs, android.os.SystemClock.uptimeMillis());
+        mHandler.removeCallbacks(stickSkipTick);
+        mHandler.post(stickSkipTick);
+    }
+
     private boolean performInputAction(PlaybackInputAction action) {
         PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
         if (controller == null) return false;
@@ -670,11 +692,11 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
 
         switch (action) {
             case SEEK_FORWARD:
-                controller.skipNow(org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipForwardLength())));
+                queueStickSkip(org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipForwardLength())));
                 setFadingEnabled(true);
                 return true;
             case SEEK_BACKWARD:
-                controller.skipNow(-org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipBackLength())));
+                queueStickSkip(-org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipBackLength())));
                 setFadingEnabled(true);
                 return true;
             case PLAY_PAUSE:
@@ -914,6 +936,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         super.onPause();
         stickSeek.reset();
         scrollSeek.reset();
+        mHandler.removeCallbacks(stickSkipTick);
         mHandler.removeCallbacks(stickSeekTick);
         if (mItemsToPlay == null || mItemsToPlay.isEmpty()) return;
 
