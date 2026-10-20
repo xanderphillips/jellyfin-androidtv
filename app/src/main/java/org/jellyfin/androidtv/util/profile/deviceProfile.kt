@@ -108,7 +108,19 @@ fun createDeviceProfile(
 	userHEVCLevel = userPreferences[UserPreferences.userHEVCLevel].level,
 	forceEnabledHdr = userPreferences.getHdrRangeTypesFor(HdrOverrideMode.ENABLE),
 	forceDisabledHdr = userPreferences.getHdrRangeTypesFor(HdrOverrideMode.DISABLE),
+	preferH264Transcode = userPreferences[UserPreferences.preferH264Transcode],
 )
+
+/**
+ * Video codecs offered for HLS transcodes, in the order the server should prefer them. HEVC is listed first
+ * when the device can decode it, unless [preferH264] is set: servers without hardware encoding transcode to
+ * H.264 many times faster than to HEVC, which matters most when seeking restarts the transcode.
+ */
+fun hlsTranscodeVideoCodecs(supportsHevc: Boolean, preferH264: Boolean): List<String> = when {
+	!supportsHevc -> listOf(Codec.Video.H264)
+	preferH264 -> listOf(Codec.Video.H264, Codec.Video.HEVC)
+	else -> listOf(Codec.Video.HEVC, Codec.Video.H264)
+}
 
 fun createDeviceProfile(
 	mediaTest: MediaCodecCapabilitiesTest,
@@ -123,7 +135,8 @@ fun createDeviceProfile(
 	userAVCLevel: Int?,
 	userHEVCLevel: Int?,
 	forceEnabledHdr: Set<VideoRangeType>,
-	forceDisabledHdr: Set<VideoRangeType>
+	forceDisabledHdr: Set<VideoRangeType>,
+	preferH264Transcode: Boolean = false,
 ) = buildDeviceProfile {
 	val allowedAudioCodecs = when {
 		downMixAudio -> downmixSupportedAudioCodecs
@@ -176,10 +189,7 @@ fun createDeviceProfile(
 
 	/// Transcoding profiles
 	// Video
-	val hlsVideoCodecs = listOfNotNull(
-		if (supportsHevc) Codec.Video.HEVC else null,
-		Codec.Video.H264
-	).toTypedArray()
+	val hlsVideoCodecs = hlsTranscodeVideoCodecs(supportsHevc, preferH264Transcode).toTypedArray()
 
 	transcodingProfile {
 		type = DlnaProfileType.VIDEO

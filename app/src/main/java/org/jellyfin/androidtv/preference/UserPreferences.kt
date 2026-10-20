@@ -1,6 +1,7 @@
 package org.jellyfin.androidtv.preference
 
 import android.content.Context
+import android.os.Build
 import androidx.preference.PreferenceManager
 import org.jellyfin.androidtv.preference.UserPreferences.Companion.screensaverInAppEnabled
 import org.jellyfin.androidtv.preference.constant.AVCLevel
@@ -122,6 +123,12 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 * Playback buffer size preset.
 		 */
 		var bufferLength = enumPreference("buffer_length", BufferLength.AUTO)
+
+		/**
+		 * Ask the server to transcode to H.264 before HEVC. On by default on Meta headsets, whose
+		 * servers typically have no hardware HEVC encoder and cannot keep up when seeking.
+		 */
+		var preferH264Transcode = booleanPreference("prefer_h264_transcode", Build.MANUFACTURER.equals("Oculus", true) || Build.MANUFACTURER.equals("Meta", true))
 
 		/* Playback - Audio related */
 		/**

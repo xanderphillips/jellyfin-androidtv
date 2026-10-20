@@ -268,6 +268,18 @@ fun SettingsPlaybackAdvancedScreen() {
 		}
 
 		item {
+			var preferH264Transcode by rememberPreference(userPreferences, UserPreferences.preferH264Transcode)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.pref_prefer_h264_transcode)) },
+				captionContent = { Text(stringResource(R.string.pref_prefer_h264_transcode_description)) },
+				trailingContent = { Checkbox(checked = preferH264Transcode) },
+				onClick = { preferH264Transcode = !preferH264Transcode },
+				modifier = Modifier.focusKey("prefer_h264_transcode")
+			)
+		}
+
+		item {
 			var subtitlesBurnDuringTranscode by rememberPreference(userPreferences, UserPreferences.subtitlesBurnDuringTranscode)
 
 			ListButton(
