@@ -42,6 +42,7 @@ import org.jellyfin.androidtv.ui.playback.overlay.action.SelectAudioAction;
 import org.jellyfin.androidtv.ui.playback.overlay.action.SelectQualityAction;
 import org.jellyfin.androidtv.ui.playback.overlay.action.SkipNextAction;
 import org.jellyfin.androidtv.ui.playback.overlay.action.SkipPreviousAction;
+import org.jellyfin.androidtv.ui.playback.overlay.action.StopAction;
 import org.jellyfin.androidtv.ui.playback.overlay.action.ZoomAction;
 import org.jellyfin.androidtv.util.DateTimeExtensionsKt;
 import org.koin.java.KoinJavaComponent;
@@ -62,6 +63,7 @@ public class CustomPlaybackTransportControlGlue extends PlaybackTransportControl
     private SelectQualityAction selectQualityAction;
     private PlaybackSpeedAction playbackSpeedAction;
     private ZoomAction zoomAction;
+    private StopAction stopAction;
     private ChapterAction chapterAction;
 
     // TV actions
@@ -202,6 +204,8 @@ public class CustomPlaybackTransportControlGlue extends PlaybackTransportControl
         playbackSpeedAction.setLabels(new String[]{context.getString(R.string.lbl_playback_speed)});
         zoomAction = new ZoomAction(context, this);
         zoomAction.setLabels(new String[]{context.getString(R.string.lbl_zoom)});
+        stopAction = new StopAction(context, this);
+        stopAction.setLabels(new String[]{context.getString(R.string.lbl_stop)});
         chapterAction = new ChapterAction(context, this);
         chapterAction.setLabels(new String[]{context.getString(R.string.lbl_chapters)});
 
@@ -236,6 +240,7 @@ public class CustomPlaybackTransportControlGlue extends PlaybackTransportControl
 
         // Primary Items
         primaryActionsAdapter.add(playPauseAction);
+        primaryActionsAdapter.add(stopAction);
         VideoPlayerAdapter playerAdapter = getPlayerAdapter();
 
         if (playerAdapter.canSeek()) {

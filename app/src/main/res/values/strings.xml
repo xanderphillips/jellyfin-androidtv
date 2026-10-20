@@ -42,6 +42,7 @@
     <string name="lbl_play">Play</string>
     <string name="lbl_pause">Pause</string>
     <string name="lbl_exit">Exit</string>
+    <string name="lbl_stop">Stop</string>
     <string name="lbl_cancel">Cancel</string>
     <string name="lbl_cancel_recording">Cancel recording</string>
     <string name="lbl_cancel_series">Cancel series</string>
