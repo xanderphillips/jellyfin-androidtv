@@ -75,6 +75,9 @@ import timber.log.Timber;
 
 @OptIn(markerClass = UnstableApi.class)
 public class VideoManager {
+    /** How much already-played media the larger buffer presets keep, so short skips back reuse it. */
+    private static final int BACK_BUFFER_MS = 30_000;
+
     private ZoomMode mZoomMode;
     private Activity mActivity;
     private Equalizer mEqualizer;
@@ -257,10 +260,12 @@ public class VideoManager {
         if (bufferLength == BufferLength.LARGE) {
             loadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(50_000, 120_000, 2_500, 5_000)
+                    .setBackBuffer(BACK_BUFFER_MS, true)
                     .build();
         } else if (bufferLength == BufferLength.EXTRA_LARGE) {
             loadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(80_000, 240_000, 5_000, 10_000)
+                    .setBackBuffer(BACK_BUFFER_MS, true)
                     .build();
         } else {
             loadControl = new DefaultLoadControl();
