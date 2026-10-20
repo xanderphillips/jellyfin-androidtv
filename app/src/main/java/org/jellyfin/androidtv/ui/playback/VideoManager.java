@@ -153,6 +153,11 @@ public class VideoManager {
             }
 
             @Override
+            public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
+                InputDebugLog.INSTANCE.state("Player.playWhenReady", playWhenReady + " reason=" + reason + " " + debugBufferInfo());
+            }
+
+            @Override
             public void onIsPlayingChanged(boolean isPlaying) {
                 if (isPlaying) {
                     if (mPlaybackControllerNotifiable != null) mPlaybackControllerNotifiable.onPrepared();
@@ -169,7 +174,7 @@ public class VideoManager {
                 if (playbackState == Player.STATE_BUFFERING) {
                     Timber.d("Player is buffering");
                 }
-                InputDebugLog.INSTANCE.state("Player.state", playbackState + " " + debugBufferInfo());
+                InputDebugLog.INSTANCE.state("Player.state", playbackState + " " + debugBufferInfo() + " playWhenReady=" + mExoPlayer.getPlayWhenReady());
 
                 if (playbackState == Player.STATE_ENDED) {
                     if (mPlaybackControllerNotifiable != null) mPlaybackControllerNotifiable.onCompletion();
@@ -357,6 +362,10 @@ public class VideoManager {
         mExoPlayer.setPlayWhenReady(true);
         normalWidth = mExoPlayerView.getLayoutParams().width;
         normalHeight = mExoPlayerView.getLayoutParams().height;
+    }
+
+    public boolean getPlayWhenReady() {
+        return mExoPlayer != null && mExoPlayer.getPlayWhenReady();
     }
 
     public void play() {

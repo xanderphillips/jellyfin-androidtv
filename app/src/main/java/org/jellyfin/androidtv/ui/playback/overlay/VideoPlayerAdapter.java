@@ -126,7 +126,7 @@ public class VideoPlayerAdapter extends PlayerAdapter {
 
     @Override
     public boolean isPlaying() {
-        return playbackController.isPlaying();
+        return playbackController.isPlayingIntent();
     }
 
     @Override

@@ -251,6 +251,32 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         return mItems != null && mCurrentIndex - 1 >= 0;
     }
 
+    /**
+     * True while playback is meant to be running, including while it buffers after a seek. The seek bar uses
+     * this to decide whether to resume after scrubbing; the plain isPlaying() is false during buffering.
+     */
+    public boolean isPlayingIntent() {
+        return SeekPlayIntent.Companion.wantsPlayback(mPlaybackState == PlaybackState.PAUSED,
+                mPlaybackState == PlaybackState.IDLE || mPlaybackState == PlaybackState.ERROR);
+    }
+
+    private final SeekPlayIntent seekPlayIntent = new SeekPlayIntent();
+
+    private void scheduleEnsurePlaying(long delayMs) {
+        mHandler.postDelayed(() -> {
+            if (mPlaybackState == PlaybackState.PLAYING && hasInitializedVideoManager() && !mVideoManager.getPlayWhenReady()) {
+                InputDebugLog.INSTANCE.state("PlaybackController.ensurePlaying", "player was not playing after a seek, resuming " + debugPlayerState());
+                mVideoManager.play();
+            }
+        }, delayMs);
+    }
+
+    private String debugPlayerState() {
+        return "state=" + mPlaybackState + " wasSeeking=" + wasSeeking + " playWhenReady="
+                + (hasInitializedVideoManager() && mVideoManager.getPlayWhenReady()) + " exoPlaying="
+                + (hasInitializedVideoManager() && mVideoManager.isPlaying());
+    }
+
     public boolean isPlaying() {
         // since playbackController is so closely tied to videoManager, check if it is playing too since they can fall out of sync
         return mPlaybackState == PlaybackState.PLAYING && hasInitializedVideoManager() && mVideoManager.isPlaying();
@@ -398,6 +424,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                     newPos = mSeekPosition;
                 }
                 wasSeeking = false;
+                seekPlayIntent.settle();
             }
         }
         // use original value if new one isn't available
@@ -850,6 +877,8 @@ public class PlaybackController implements PlaybackControllerNotifiable {
 
     public void pause() {
         Timber.i("pause called at %s", mCurrentPosition);
+        InputDebugLog.INSTANCE.state("PlaybackController.pause", debugPlayerState());
+        seekPlayIntent.settle();
         // if playback is paused and the seekbar is scrubbed, it will call pause even if already paused
         if (mPlaybackState == PlaybackState.PAUSED) {
             Timber.d("already paused, ignoring");
@@ -1073,16 +1102,27 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             // if seek succeeds call play and mirror the logic in play() for unpausing. if fails call pause()
             // stopProgressLoop() being called at the beginning of startProgressLoop keeps this from breaking. otherwise it would start twice
             // if seek() is called from skip()
+            // Carry on playing only if playback was running before the seek (or before the first of a quick series)
+            boolean resumeAfterSeek = seekPlayIntent.begin(mPlaybackState != PlaybackState.PAUSED);
+            InputDebugLog.INSTANCE.state("PlaybackController.seek", "pos=" + pos + " resume=" + resumeAfterSeek + " " + debugPlayerState());
             mPlaybackState = PlaybackState.SEEKING;
             if (mVideoManager.seekTo(pos) < 0) {
                 if (mFragment != null)
                     Utils.showToast(mFragment.getContext(), mFragment.getString(R.string.seek_error));
+                seekPlayIntent.settle();
                 pause();
-            } else {
+            } else if (resumeAfterSeek) {
                 mVideoManager.play();
                 mPlaybackState = PlaybackState.PLAYING;
                 if (mFragment != null) mFragment.setFadingEnabled(true);
                 startReportLoop();
+                scheduleEnsurePlaying(1_500L);
+                scheduleEnsurePlaying(4_000L);
+            } else {
+                // A seek while paused moves the position and leaves the video paused
+                mPlaybackState = PlaybackState.PAUSED;
+                wasSeeking = false;
+                seekPlayIntent.settle();
             }
         }
     }
