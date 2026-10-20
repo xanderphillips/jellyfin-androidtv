@@ -99,7 +99,7 @@ fun ItemListFragment.deleteItem(item: BaseItemDto, callback: (success: Boolean) 
 	val dataRefreshService by inject<DataRefreshService>()
 
 	lifecycleScope.launch {
-		val success = deleteLibraryItem(api, dataRefreshService, item.id, item.name)
+		val success = deleteLibraryItem(api, dataRefreshService, item.id, item.name, item.type, item.parentId)
 		callback(success)
 	}
 }

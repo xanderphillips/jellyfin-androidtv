@@ -14,6 +14,7 @@ import org.jellyfin.sdk.api.operations.LibraryApi
 import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import org.jellyfin.sdk.model.api.BaseItemKind
 import java.util.UUID
 
 class LibraryItemDeletionTest : FunSpec({
@@ -74,6 +75,18 @@ class LibraryItemDeletionTest : FunSpec({
 		runTest {
 			deleteLibraryItem(api, dataRefreshService, itemId, "Test Episode")
 			dataRefreshService.lastDeletedItemId.shouldBeNull()
+		}
+	}
+
+	test("accepts item type and parent id for logging without changing the result") {
+		val api = mockk<ApiClient>()
+		val libraryApi = mockk<LibraryApi>()
+		every { api.libraryApi } returns libraryApi
+		coEvery { libraryApi.deleteItem(itemId) } returns mockk()
+
+		runTest {
+			val result = deleteLibraryItem(api, DataRefreshService(), itemId, "Show", BaseItemKind.SERIES, UUID.randomUUID())
+			result shouldBe true
 		}
 	}
 })

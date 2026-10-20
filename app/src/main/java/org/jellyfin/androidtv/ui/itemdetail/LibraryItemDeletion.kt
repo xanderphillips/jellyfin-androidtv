@@ -6,6 +6,7 @@ import org.jellyfin.androidtv.data.model.DataRefreshService
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.extensions.libraryApi
+import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
 import java.util.UUID
 
@@ -19,8 +20,10 @@ suspend fun deleteLibraryItem(
 	dataRefreshService: DataRefreshService,
 	itemId: UUID,
 	itemName: String?,
+	itemType: BaseItemKind? = null,
+	parentId: UUID? = null,
 ): Boolean {
-	Timber.i("Deleting item $itemName (id=$itemId)")
+	Timber.i("Deleting item $itemName (id=$itemId, type=$itemType, parentId=$parentId)")
 
 	return try {
 		withContext(Dispatchers.IO) {

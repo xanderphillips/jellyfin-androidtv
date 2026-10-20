@@ -1,6 +1,5 @@
 package org.jellyfin.androidtv.util;
 
-import android.app.AlertDialog;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MenuItem;
@@ -13,6 +12,7 @@ import org.jellyfin.androidtv.R;
 import org.jellyfin.androidtv.constant.CustomMessage;
 import org.jellyfin.androidtv.data.repository.CustomMessageRepository;
 import org.jellyfin.androidtv.data.repository.ItemMutationRepository;
+import org.jellyfin.androidtv.ui.itemdetail.DeleteConfirmationKt;
 import org.jellyfin.androidtv.ui.itemhandling.AudioQueueBaseRowItem;
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem;
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowType;
@@ -358,13 +358,8 @@ public class KeyProcessor {
 
     private void confirmDelete(FragmentActivity activity, BaseItemDto item) {
         Timber.i("Showing item delete confirmation");
-        new AlertDialog.Builder(activity)
-                .setTitle(activity.getString(R.string.item_delete_confirm_title))
-                .setMessage(activity.getString(R.string.item_delete_confirm_message))
-                .setNegativeButton(R.string.lbl_no, null)
-                .setPositiveButton(R.string.lbl_delete, (dialog, which) ->
-                        KeyProcessorHelperKt.deleteItemAndRefresh(activity, item))
-                .show();
+        DeleteConfirmationKt.showDeleteConfirmation(activity, item, () ->
+                KeyProcessorHelperKt.deleteItemAndRefresh(activity, item));
     }
 
     private void togglePlayed(LifecycleOwner lifecycleOwner, UUID itemId, boolean played) {
