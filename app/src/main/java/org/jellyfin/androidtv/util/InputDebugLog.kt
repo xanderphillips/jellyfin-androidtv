@@ -12,6 +12,9 @@ import kotlin.math.abs
 /** Temporary diagnostics for controller input. Does nothing outside debug builds. */
 object InputDebugLog {
 	private const val TAG = "QuestInput"
+	private const val CHANGE_DELTA = 0.1f
+	private const val MIN_MOVE_INTERVAL_MS = 100L
+	private const val SOURCE_HASH = 31
 	private val axes = intArrayOf(
 		MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ, MotionEvent.AXIS_RX, MotionEvent.AXIS_RY,
 		MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y, MotionEvent.AXIS_HSCROLL, MotionEvent.AXIS_VSCROLL,
@@ -43,9 +46,9 @@ object InputDebugLog {
 		val values = FloatArray(axes.size) { event.getAxisValue(axes[it]) }
 		if (event.actionMasked == MotionEvent.ACTION_MOVE || event.actionMasked == MotionEvent.ACTION_HOVER_MOVE) {
 			val now = SystemClock.uptimeMillis()
-			val key = event.source * 31 + event.actionMasked
-			val changed = key != lastMoveKey || values.indices.any { abs(values[it] - lastMove[it]) > 0.1f }
-			if (!changed || now - lastMoveAt < 100) return
+			val key = event.source * SOURCE_HASH + event.actionMasked
+			val changed = key != lastMoveKey || values.indices.any { abs(values[it] - lastMove[it]) > CHANGE_DELTA }
+			if (!changed || now - lastMoveAt < MIN_MOVE_INTERVAL_MS) return
 			lastMoveKey = key
 			lastMove = values
 			lastMoveAt = now

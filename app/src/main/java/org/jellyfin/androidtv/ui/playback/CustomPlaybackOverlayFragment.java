@@ -826,10 +826,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         scrubBar.getLocationOnScreen(loc);
         long duration = controller.getDuration();
         long position = PointerPlayback.INSTANCE.seekPositionMs(event.getRawX(), loc[0], scrubBar.getWidth(), duration);
-        if (scrubBar instanceof androidx.leanback.widget.SeekBar && duration > 0) {
-            androidx.leanback.widget.SeekBar seekBar = (androidx.leanback.widget.SeekBar) scrubBar;
-            seekBar.setProgress((int) (position * seekBar.getMax() / duration));
-        }
         if (commit) {
             InputDebugLog.INSTANCE.state("Fragment.onPointerTouch", "scrub commit " + position + "ms of " + duration);
             controller.seek(position);

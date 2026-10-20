@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.ui.browsing
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
@@ -139,12 +140,13 @@ class MainActivity : FragmentActivity() {
 	override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean =
 		onKeyEvent(keyCode, event) || super.onKeyUp(keyCode, event)
 
-	// Thumbstick input for video playback (e.g. Meta Quest controllers)
+	// Controller and pointer input for the video player (e.g. Meta Quest)
 
-	private fun Fragment.forwardJoystickMotion(event: MotionEvent): Boolean =
-		(this is CustomPlaybackOverlayFragment && onJoystickMotion(event)) ||
-			childFragmentManager.fragments.any { it.forwardJoystickMotion(event) }
+	private fun Fragment.forwardToPlayer(block: (CustomPlaybackOverlayFragment) -> Boolean): Boolean =
+		(this is CustomPlaybackOverlayFragment && block(this)) ||
+			childFragmentManager.fragments.any { it.forwardToPlayer(block) }
 
+	@SuppressLint("RestrictedApi") // Debug-only input logging
 	override fun dispatchKeyEvent(event: KeyEvent): Boolean {
 		InputDebugLog.key("Activity.dispatchKeyEvent", this, event)
 		return super.dispatchKeyEvent(event)
@@ -152,18 +154,13 @@ class MainActivity : FragmentActivity() {
 
 	override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
 		InputDebugLog.motion("Activity.dispatchTouchEvent", this, ev)
-		return supportFragmentManager.fragments.any { it.forwardPointerTouch(ev) } || super.dispatchTouchEvent(ev)
+		return supportFragmentManager.fragments.any { it.forwardToPlayer { player -> player.onPointerTouch(ev) } } ||
+			super.dispatchTouchEvent(ev)
 	}
-
-	private fun Fragment.forwardPointerTouch(event: MotionEvent): Boolean =
-		(this is CustomPlaybackOverlayFragment && onPointerTouch(event)) ||
-			childFragmentManager.fragments.any { it.forwardPointerTouch(event) }
 
 	override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
 		InputDebugLog.motion("Activity.dispatchGenericMotionEvent", this, ev)
-		return dispatchGenericMotionEventInner(ev)
+		return supportFragmentManager.fragments.any { it.forwardToPlayer { player -> player.onJoystickMotion(ev) } } ||
+			super.dispatchGenericMotionEvent(ev)
 	}
-
-	private fun dispatchGenericMotionEventInner(ev: MotionEvent): Boolean =
-		supportFragmentManager.fragments.any { it.forwardJoystickMotion(ev) } || super.dispatchGenericMotionEvent(ev)
 }
