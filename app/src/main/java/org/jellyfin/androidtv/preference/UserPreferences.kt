@@ -8,6 +8,7 @@ import org.jellyfin.androidtv.preference.constant.AppTheme
 import org.jellyfin.androidtv.preference.constant.AudioBehavior
 import org.jellyfin.androidtv.preference.constant.BackdropBehavior
 import org.jellyfin.androidtv.preference.constant.BitstreamAudioMode
+import org.jellyfin.androidtv.preference.constant.BufferDefaults
 import org.jellyfin.androidtv.preference.constant.BufferLength
 import org.jellyfin.androidtv.preference.constant.ClockBehavior
 import org.jellyfin.androidtv.preference.constant.HEVCLevel
@@ -122,13 +123,13 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		/**
 		 * Playback buffer size preset.
 		 */
-		var bufferLength = enumPreference("buffer_length", if (isMetaHeadset) BufferLength.LARGE else BufferLength.AUTO)
+		var bufferLength = enumPreference("buffer_length", BufferDefaults.defaultBufferLength(isMetaHeadset, Runtime.getRuntime().maxMemory()))
 
 		/**
 		 * Ask the server to transcode to H.264 before HEVC. On by default on Meta headsets, whose
 		 * servers typically have no hardware HEVC encoder and cannot keep up when seeking.
 		 */
-		var preferH264Transcode = booleanPreference("prefer_h264_transcode", isMetaHeadset)
+		var preferH264Transcode = booleanPreference("prefer_h264_transcode", TranscodeDefaults.PREFER_H264)
 
 		/* Playback - Audio related */
 		/**

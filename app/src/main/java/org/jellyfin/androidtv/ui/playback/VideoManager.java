@@ -49,6 +49,7 @@ import androidx.media3.ui.PlayerView;
 import org.jellyfin.androidtv.R;
 import org.jellyfin.androidtv.data.compat.StreamInfo;
 import org.jellyfin.androidtv.preference.UserPreferences;
+import org.jellyfin.androidtv.preference.constant.BufferDefaults;
 import org.jellyfin.androidtv.preference.constant.BufferLength;
 import org.jellyfin.androidtv.preference.constant.ZoomMode;
 import org.jellyfin.androidtv.util.InputDebugLog;
@@ -260,11 +261,13 @@ public class VideoManager {
         if (bufferLength == BufferLength.LARGE) {
             loadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(50_000, 120_000, 2_500, 5_000)
+                    .setTargetBufferBytes(BufferDefaults.INSTANCE.byteCap(Runtime.getRuntime().maxMemory()))
                     .setBackBuffer(BACK_BUFFER_MS, true)
                     .build();
         } else if (bufferLength == BufferLength.EXTRA_LARGE) {
             loadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(80_000, 240_000, 5_000, 10_000)
+                    .setTargetBufferBytes(BufferDefaults.INSTANCE.byteCap(Runtime.getRuntime().maxMemory()))
                     .setBackBuffer(BACK_BUFFER_MS, true)
                     .build();
         } else {
