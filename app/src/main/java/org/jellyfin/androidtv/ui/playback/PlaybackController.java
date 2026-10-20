@@ -6,6 +6,7 @@ import static org.koin.java.KoinJavaComponent.inject;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.view.Display;
 import android.view.WindowManager;
 
@@ -960,16 +961,16 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     }
 
     public void fastForward() {
-        UserSettingPreferences prefs = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class);
-        skip(prefs.get(UserSettingPreferences.Companion.getSkipForwardLength()));
+        fastForward(false);
     }
 
-    public void skipBy(int msec) {
-        skip(msec);
+    public void fastForward(boolean isRepeat) {
+        UserSettingPreferences prefs = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class);
+        requestSkip(prefs.get(UserSettingPreferences.Companion.getSkipForwardLength()), isRepeat);
     }
 
     /**
-     * Skips relative to the current position right away, without the delayed coalescing of skip(). Does nothing
+     * Skips relative to the current position right away, without waiting for further presses. Does nothing
      * while a previous seek is still in progress so repeated requests cannot queue up.
      */
     public boolean skipNow(int msec) {
@@ -983,8 +984,12 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     }
 
     public void rewind() {
+        rewind(false);
+    }
+
+    public void rewind(boolean isRepeat) {
         UserSettingPreferences prefs = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class);
-        skip(-prefs.get(UserSettingPreferences.Companion.getSkipBackLength()));
+        requestSkip(-prefs.get(UserSettingPreferences.Companion.getSkipBackLength()), isRepeat);
     }
 
     public void seek(long pos) {
@@ -1083,25 +1088,56 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     }
 
     private long currentSkipPos = 0;
-    private final Runnable skipRunnable = () -> {
-        if (!(isPlaying() || isPaused())) return; // in case we completed since this was requested
-
-        seek(currentSkipPos);
-        currentSkipPos = 0;
+    private final RemoteSkipPlanner remoteSkip = new RemoteSkipPlanner(500L, 300L);
+    private int remoteSkipRetries = 0;
+    private final Runnable remoteSkipTick = new Runnable() {
+        @Override
+        public void run() {
+            Integer delta = remoteSkip.next(SystemClock.uptimeMillis(), wasSeeking);
+            if (delta != null) {
+                if (skipNow(delta)) remoteSkipRetries = 0;
+                else if (remoteSkipRetries++ < MAX_QUEUE_RETRIES) remoteSkip.restore(delta);
+            }
+            if (remoteSkip.getHasPending()) mHandler.postDelayed(this, QUEUE_POLL_MS);
+        }
     };
 
-    private void skip(int msec) {
-        if (hasInitializedVideoManager() && (isPlaying() || isPaused()) && spinnerOff && mVideoManager.getCurrentPosition() > 0) { //guard against skipping before playback has truly begun
-            mHandler.removeCallbacks(skipRunnable);
-            refreshCurrentPosition();
-            currentSkipPos = Utils.getSafeSeekPosition((currentSkipPos == 0 ? mCurrentPosition : currentSkipPos) + msec, getDuration());
-
-            Timber.i("Skip amount requested was %s. Calculated position is %s", msec, currentSkipPos);
-            Timber.i("Duration reported as: %s current pos: %s", getDuration(), mCurrentPosition);
-
-            mSeekPosition = currentSkipPos;
-            mHandler.postDelayed(skipRunnable, 800);
+    private final LatestSeekQueue seekQueue = new LatestSeekQueue();
+    private int queuedSeekRetries = 0;
+    private final Runnable queuedSeekTick = new Runnable() {
+        @Override
+        public void run() {
+            Long target = seekQueue.take(wasSeeking || !hasInitializedVideoManager());
+            if (target != null) {
+                queuedSeekRetries = 0;
+                seek(target);
+            } else if (queuedSeekRetries++ >= MAX_QUEUE_RETRIES) {
+                seekQueue.clear();
+            }
+            if (seekQueue.getHasPending()) mHandler.postDelayed(this, QUEUE_POLL_MS);
         }
+    };
+
+    private static final int MAX_QUEUE_RETRIES = 30;
+    private static final long QUEUE_POLL_MS = 100L;
+
+    /**
+     * Skips by a user-configured amount. The first press seeks right away; presses while a seek is running add
+     * up into the next seek instead of being dropped, and held-key repeats are thinned.
+     */
+    private void requestSkip(int msec, boolean isRepeat) {
+        if (!remoteSkip.onPress(msec, isRepeat, SystemClock.uptimeMillis())) return;
+        remoteSkipRetries = 0;
+        mHandler.removeCallbacks(remoteSkipTick);
+        mHandler.post(remoteSkipTick);
+    }
+
+    /** Seeks to a position, keeping only the latest target if a seek is already running. */
+    public void seekQueued(long pos) {
+        seekQueue.set(pos);
+        queuedSeekRetries = 0;
+        mHandler.removeCallbacks(queuedSeekTick);
+        mHandler.post(queuedSeekTick);
     }
 
     public void updateTvProgramInfo() {

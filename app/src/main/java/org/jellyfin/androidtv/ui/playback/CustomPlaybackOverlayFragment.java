@@ -597,13 +597,15 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                     // Control fast forward and rewind if overlay hidden and not showing live TV
                     if (!playbackControllerContainer.getValue().getPlaybackController().isLiveTv()) {
                         if (keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || keyCode == KeyEvent.KEYCODE_BUTTON_R1 || keyCode == KeyEvent.KEYCODE_BUTTON_R2) {
-                            playbackControllerContainer.getValue().getPlaybackController().fastForward();
+                            playbackControllerContainer.getValue().getPlaybackController().fastForward(event.getRepeatCount() > 0);
+                            showControlsForSkip();
                             setFadingEnabled(true);
                             return true;
                         }
 
                         if (keyCode == KeyEvent.KEYCODE_MEDIA_REWIND || keyCode == KeyEvent.KEYCODE_BUTTON_L1 || keyCode == KeyEvent.KEYCODE_BUTTON_L2) {
-                            playbackControllerContainer.getValue().getPlaybackController().rewind();
+                            playbackControllerContainer.getValue().getPlaybackController().rewind(event.getRepeatCount() > 0);
+                            showControlsForSkip();
                             setFadingEnabled(true);
                             return true;
                         }
@@ -672,6 +674,13 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         stickSkips.add(deltaMs, android.os.SystemClock.uptimeMillis());
         mHandler.removeCallbacks(stickSkipTick);
         mHandler.post(stickSkipTick);
+    }
+
+    /** Shows the controls when a skip key is pressed with them hidden, so the skip has visible feedback. */
+    private void showControlsForSkip() {
+        if (leanbackOverlayFragment != null && !leanbackOverlayFragment.isControlsOverlayVisible()) {
+            performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
+        }
     }
 
     private boolean performInputAction(PlaybackInputAction action) {

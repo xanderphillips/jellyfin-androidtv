@@ -96,7 +96,7 @@ public class VideoPlayerAdapter extends PlayerAdapter {
 
     @Override
     public void seekTo(long positionInMs) {
-        playbackController.seek(positionInMs);
+        playbackController.seekQueued(positionInMs);
         updateCurrentPosition();
     }
 
