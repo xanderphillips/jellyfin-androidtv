@@ -3,6 +3,7 @@ package org.jellyfin.androidtv.ui.browsing
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -26,6 +27,7 @@ import org.jellyfin.androidtv.ui.base.JellyfinTheme
 import org.jellyfin.androidtv.ui.base.ProvideLocalInteractionTracker
 import org.jellyfin.androidtv.ui.composable.compat.AppNavigationHost
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
+import org.jellyfin.androidtv.ui.playback.CustomPlaybackOverlayFragment
 import org.jellyfin.androidtv.ui.screensaver.InAppScreensaver
 import org.jellyfin.androidtv.ui.settings.compat.MainActivitySettings
 import org.jellyfin.androidtv.ui.startup.StartupActivity
@@ -135,4 +137,13 @@ class MainActivity : FragmentActivity() {
 
 	override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean =
 		onKeyEvent(keyCode, event) || super.onKeyUp(keyCode, event)
+
+	// Thumbstick input for video playback (e.g. Meta Quest controllers)
+
+	private fun Fragment.forwardJoystickMotion(event: MotionEvent): Boolean =
+		(this is CustomPlaybackOverlayFragment && onJoystickMotion(event)) ||
+			childFragmentManager.fragments.any { it.forwardJoystickMotion(event) }
+
+	override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean =
+		supportFragmentManager.fragments.any { it.forwardJoystickMotion(ev) } || super.dispatchGenericMotionEvent(ev)
 }
