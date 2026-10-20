@@ -47,8 +47,8 @@ import kotlin.math.roundToLong
 
 @Composable
 private fun formatSkipLength(ms: Int): String =
-	if (ms >= 60_000) stringResource(R.string.skip_length_minutes, ms / 60_000)
-	else stringResource(R.string.skip_length_seconds, ms / 1000)
+	if (ms >= ThumbstickSkipLengths.MS_PER_MINUTE) stringResource(R.string.skip_length_minutes, ms / ThumbstickSkipLengths.MS_PER_MINUTE)
+	else stringResource(R.string.skip_length_seconds, ms / ThumbstickSkipLengths.MS_PER_SECOND)
 
 @Composable
 fun SettingsPlaybackAdvancedScreen() {

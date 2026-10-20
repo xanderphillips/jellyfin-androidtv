@@ -15,6 +15,8 @@ import java.util.UUID
  * like the home rows can prune it. Shared by the full item-detail view and the
  * quick-delete actions so all of them go through one code path.
  */
+// Parameters are the log context (name, type, parent) for one call; the callers and tests pass them individually
+@Suppress("LongParameterList")
 suspend fun deleteLibraryItem(
 	api: ApiClient,
 	dataRefreshService: DataRefreshService,

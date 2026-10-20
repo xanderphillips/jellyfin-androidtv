@@ -19,7 +19,17 @@ class GamepadPlaybackInputTest : FunSpec({
 	}
 
 	test("keys handled elsewhere or unrelated are not mapped") {
-		for (key in listOf(KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR)) {
+		val unmapped = listOf(
+			KeyEvent.KEYCODE_BUTTON_B,
+			KeyEvent.KEYCODE_BUTTON_L1,
+			KeyEvent.KEYCODE_BUTTON_R1,
+			KeyEvent.KEYCODE_DPAD_LEFT,
+			KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+			KeyEvent.KEYCODE_MENU,
+			KeyEvent.KEYCODE_BUTTON_THUMBL,
+			KeyEvent.KEYCODE_BUTTON_THUMBR,
+		)
+		for (key in unmapped) {
 			GamepadPlaybackInput.actionForKey(key, false) shouldBe null
 		}
 	}
