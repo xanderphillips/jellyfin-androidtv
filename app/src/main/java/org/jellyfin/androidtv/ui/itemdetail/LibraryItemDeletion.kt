@@ -6,6 +6,7 @@ import org.jellyfin.androidtv.data.model.DataRefreshService
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.extensions.libraryApi
+import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
 import java.util.UUID
 
@@ -14,13 +15,17 @@ import java.util.UUID
  * like the home rows can prune it. Shared by the full item-detail view and the
  * quick-delete actions so all of them go through one code path.
  */
+// Parameters are the log context (name, type, parent) for one call; the callers and tests pass them individually
+@Suppress("LongParameterList")
 suspend fun deleteLibraryItem(
 	api: ApiClient,
 	dataRefreshService: DataRefreshService,
 	itemId: UUID,
 	itemName: String?,
+	itemType: BaseItemKind? = null,
+	parentId: UUID? = null,
 ): Boolean {
-	Timber.i("Deleting item $itemName (id=$itemId)")
+	Timber.i("Deleting item $itemName (id=$itemId, type=$itemType, parentId=$parentId)")
 
 	return try {
 		withContext(Dispatchers.IO) {

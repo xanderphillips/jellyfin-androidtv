@@ -32,7 +32,7 @@ fun FragmentActivity.deleteItemAndRefresh(item: BaseItemDto) {
 	val customMessageRepository by inject<CustomMessageRepository>()
 
 	lifecycleScope.launch {
-		val success = deleteLibraryItem(api, dataRefreshService, item.id, item.name)
+		val success = deleteLibraryItem(api, dataRefreshService, item.id, item.name, item.type, item.parentId)
 
 		if (success) {
 			Toast.makeText(

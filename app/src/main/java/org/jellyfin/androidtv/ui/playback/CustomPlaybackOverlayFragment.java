@@ -10,7 +10,9 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.KeyEvent;
+import android.view.InputDevice;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -116,6 +118,15 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     private Animation showPopup;
     private Animation hidePopup;
     private final Handler mHandler = new Handler();
+    private final StickSeekRepeater stickSeek = new StickSeekRepeater(0.6f, 0.3f, 450L, 300L);
+    private final Runnable stickSeekTick = new Runnable() {
+        @Override
+        public void run() {
+            PlaybackInputAction action = stickSeek.tick(android.os.SystemClock.uptimeMillis());
+            if (action != null) performInputAction(action);
+            if (stickSeek.isEngaged()) mHandler.postDelayed(this, 50);
+        }
+    };
     private Runnable mHideTask;
 
     private AudioManager mAudioManager;
@@ -128,6 +139,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     protected LeanbackOverlayFragment leanbackOverlayFragment;
 
     private final Lazy<org.jellyfin.sdk.api.client.ApiClient> api = inject(org.jellyfin.sdk.api.client.ApiClient.class);
+    private final Lazy<org.jellyfin.androidtv.preference.UserSettingPreferences> userSettingPreferences = inject(org.jellyfin.androidtv.preference.UserSettingPreferences.class);
     private final Lazy<MediaManager> mediaManager = inject(MediaManager.class);
     private final Lazy<VideoQueueManager> videoQueueManager = inject(VideoQueueManager.class);
     private final Lazy<PlaybackControllerContainer> playbackControllerContainer = inject(PlaybackControllerContainer.class);
@@ -547,7 +559,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                     }
                 }
 
-                if (playbackControllerContainer.getValue().getPlaybackController().isLiveTv() && keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_BUTTON_Y) {
+                if (playbackControllerContainer.getValue().getPlaybackController().isLiveTv() && (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_BUTTON_Y)) {
                     showGuide();
                     return true;
                 }
@@ -569,6 +581,12 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                         } else {
                             return false;
                         }
+                    }
+
+                    // Gamepad / VR controller buttons
+                    if (event.getRepeatCount() == 0) {
+                        PlaybackInputAction gamepadAction = GamepadPlaybackInput.INSTANCE.actionForKey(keyCode, leanbackOverlayFragment.isControlsOverlayVisible());
+                        if (gamepadAction != null && performInputAction(gamepadAction)) return true;
                     }
 
                     // Control fast forward and rewind if overlay hidden and not showing live TV
@@ -622,6 +640,70 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
             return false;
         }
     };
+
+    private boolean performInputAction(PlaybackInputAction action) {
+        PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+        if (controller == null) return false;
+
+        if (action == PlaybackInputAction.TOGGLE_CONTROLS) {
+            if (leanbackOverlayFragment.isControlsOverlayVisible()) {
+                leanbackOverlayFragment.hideOverlay();
+            } else {
+                leanbackOverlayFragment.setShouldShowOverlay(true);
+                leanbackOverlayFragment.showControlsOverlay(true);
+            }
+            return true;
+        }
+
+        if (!controller.canSeek()) return false;
+
+        switch (action) {
+            case SEEK_FORWARD:
+                controller.skipBy(org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipForwardLength())));
+                setFadingEnabled(true);
+                return true;
+            case SEEK_BACKWARD:
+                controller.skipBy(-org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipBackLength())));
+                setFadingEnabled(true);
+                return true;
+            case PLAY_PAUSE:
+                controller.playPause();
+                return true;
+            case NEXT_ITEM:
+                if (!controller.hasNextItem()) return false;
+                controller.next();
+                return true;
+            case PREVIOUS_ITEM:
+                if (!controller.hasPreviousItem()) return false;
+                controller.prev();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Left thumbstick (or hat) left/right seeks while a video is playing. Returns true when the event
+     * was used so the framework does not also turn it into D-pad key presses.
+     */
+    public boolean onJoystickMotion(@NonNull MotionEvent event) {
+        if (!isResumed() || mGuideVisible || mPopupPanelVisible) return false;
+        if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK
+                || event.getActionMasked() != MotionEvent.ACTION_MOVE) return false;
+
+        PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+        if (controller == null || !controller.canSeek()) return false;
+
+        boolean wasEngaged = stickSeek.isEngaged();
+        StickSeekRepeater.Result result = stickSeek.onAxes(
+                event.getAxisValue(MotionEvent.AXIS_X),
+                event.getAxisValue(MotionEvent.AXIS_HAT_X),
+                event.getAxisValue(MotionEvent.AXIS_Y),
+                android.os.SystemClock.uptimeMillis());
+        if (result.getAction() != null) performInputAction(result.getAction());
+        if (stickSeek.isEngaged() && !wasEngaged) mHandler.postDelayed(stickSeekTick, 50);
+        return result.getConsumed();
+    }
 
     public LocalDateTime getCurrentLocalStartDate() {
         return mCurrentGuideStart;
@@ -686,6 +768,8 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     @Override
     public void onPause() {
         super.onPause();
+        stickSeek.reset();
+        mHandler.removeCallbacks(stickSeekTick);
         if (mItemsToPlay == null || mItemsToPlay.isEmpty()) return;
 
         setPlayPauseActionState(0);

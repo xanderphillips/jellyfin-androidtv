@@ -738,20 +738,14 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
 
     private void deleteItem() {
         Timber.i("Showing item delete confirmation");
-        new AlertDialog.Builder(requireContext())
-                .setTitle(getString(R.string.item_delete_confirm_title))
-                .setMessage(getString(R.string.item_delete_confirm_message))
-                .setNegativeButton(R.string.lbl_no, null)
-                .setPositiveButton(R.string.lbl_delete, (dialog, which) -> {
-                    FullDetailsFragmentHelperKt.deleteItem(
-                            this,
-                            api.getValue(),
-                            mBaseItem,
-                            dataRefreshService.getValue(),
-                            navigationRepository.getValue()
-                    );
-                })
-                .show();
+        DeleteConfirmationKt.showDeleteConfirmation(requireContext(), mBaseItem, () ->
+                FullDetailsFragmentHelperKt.deleteItem(
+                        this,
+                        api.getValue(),
+                        mBaseItem,
+                        dataRefreshService.getValue(),
+                        navigationRepository.getValue()
+                ));
     }
 
     TextUnderButton favButton = null;
