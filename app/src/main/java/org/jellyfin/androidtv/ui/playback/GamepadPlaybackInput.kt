@@ -89,29 +89,63 @@ class StickSeekRepeater(
 
 /**
  * Meta Quest delivers the left thumbstick to 2D apps as pointer-class ACTION_SCROLL events whose
- * AXIS_HSCROLL is small (roughly 0.1 to 0.3) and repeats while the stick is held. Negative skips
- * backward and positive skips forward. Steps are rate limited so a held stick gives a steady pace.
+ * AXIS_HSCROLL is small (roughly 0.1 to 0.3) and arrive about 60 times a second while the stick is held.
+ * Negative skips backward and positive skips forward.
+ *
+ * A push gives one skip straight away. Holding the stick repeats after [holdDelayMs] at [repeatMs]. A
+ * stray opposite-signed event inside a push is ignored until [flipConfirmCount] of them arrive in a row,
+ * and a pause of more than [pushGapMs] between events starts a new push.
  */
 class ScrollSeekMapper(
 	private val deadZone: Float = 0.1f,
-	private val minIntervalMs: Long = 275L,
+	private val holdDelayMs: Long = 600L,
+	private val repeatMs: Long = 450L,
+	private val pushGapMs: Long = 300L,
+	private val flipConfirmCount: Int = 3,
 ) {
-	private var lastStepAt = Long.MIN_VALUE
+	private var direction = 0
+	private var lastEventAt = Long.MIN_VALUE
+	private var nextRepeatAt = 0L
+	private var oppositeRun = 0
 
 	/** True when the scroll is mostly horizontal and big enough to be a deliberate push. */
 	fun isHorizontalPush(hScroll: Float, vScroll: Float) = abs(hScroll) >= deadZone && abs(hScroll) >= abs(vScroll)
 
-	/** The step for this scroll event, or null when it is inside the dead zone or too soon after the last step. */
+	/** The step for this scroll event, or null when it is a dead zone value, jitter, or between repeats. */
 	fun onScroll(hScroll: Float, nowMs: Long): PlaybackInputAction? {
 		if (abs(hScroll) < deadZone) return null
-		if (lastStepAt != Long.MIN_VALUE && nowMs - lastStepAt < minIntervalMs) return null
-		lastStepAt = nowMs
-		return if (hScroll > 0) PlaybackInputAction.SEEK_FORWARD else PlaybackInputAction.SEEK_BACKWARD
+
+		val sign = if (hScroll > 0) 1 else -1
+		val newPush = lastEventAt == Long.MIN_VALUE || nowMs - lastEventAt > pushGapMs
+		lastEventAt = nowMs
+
+		if (newPush || direction == 0) return startPush(sign, nowMs)
+
+		if (sign != direction) {
+			oppositeRun++
+			return if (oppositeRun >= flipConfirmCount) startPush(sign, nowMs) else null
+		}
+		oppositeRun = 0
+
+		if (nowMs < nextRepeatAt) return null
+		nextRepeatAt = nowMs + repeatMs
+		return actionFor(direction)
 	}
 
 	fun reset() {
-		lastStepAt = Long.MIN_VALUE
+		direction = 0
+		lastEventAt = Long.MIN_VALUE
+		oppositeRun = 0
 	}
+
+	private fun startPush(sign: Int, nowMs: Long): PlaybackInputAction {
+		direction = sign
+		oppositeRun = 0
+		nextRepeatAt = nowMs + holdDelayMs
+		return actionFor(sign)
+	}
+
+	private fun actionFor(dir: Int) = if (dir > 0) PlaybackInputAction.SEEK_FORWARD else PlaybackInputAction.SEEK_BACKWARD
 }
 
 /** Decisions for pointer (touchscreen/mouse) interaction with the playback screen. */
@@ -126,6 +160,10 @@ object PointerPlayback {
 	/** A gesture is a tap when it ended close to where it started and quickly. */
 	fun isTap(dx: Float, dy: Float, durationMs: Long, slopPx: Float, maxDurationMs: Long = 500L) =
 		abs(dx) <= slopPx && abs(dy) <= slopPx && durationMs <= maxDurationMs
+
+	/** True for a view that covers most of the screen, i.e. a container rather than a control. */
+	fun isContainerSized(viewWidth: Int, viewHeight: Int, rootWidth: Int, rootHeight: Int, fraction: Float = 0.8f) =
+		viewWidth >= rootWidth * fraction && viewHeight >= rootHeight * fraction
 
 	/** Maps a horizontal touch position on the seek bar to a playback position in milliseconds. */
 	fun seekPositionMs(x: Float, barLeft: Float, barWidth: Float, durationMs: Long): Long {

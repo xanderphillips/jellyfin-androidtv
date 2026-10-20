@@ -18,19 +18,46 @@ class PointerPlaybackInputTest : FunSpec({
 			ScrollSeekMapper().onScroll(0f, 0) shouldBe null
 		}
 
-		test("steps are rate limited") {
-			val m = ScrollSeekMapper(minIntervalMs = 275)
-			m.onScroll(0.25f, 1_000) shouldBe PlaybackInputAction.SEEK_FORWARD
-			m.onScroll(0.25f, 1_100) shouldBe null
-			m.onScroll(0.25f, 1_274) shouldBe null
-			m.onScroll(0.25f, 1_275) shouldBe PlaybackInputAction.SEEK_FORWARD
+		test("a held stick gives one step, then repeats after the hold delay at the repeat interval") {
+			val m = ScrollSeekMapper(holdDelayMs = 600, repeatMs = 450)
+			m.onScroll(-0.25f, 0) shouldBe PlaybackInputAction.SEEK_BACKWARD
+			// events arrive about every 16 ms while held
+			for (t in 16L..592L step 16) m.onScroll(-0.25f, t) shouldBe null
+			m.onScroll(-0.25f, 608) shouldBe PlaybackInputAction.SEEK_BACKWARD
+			for (t in 624L..1040L step 16) m.onScroll(-0.25f, t) shouldBe null
+			m.onScroll(-0.25f, 1_056) shouldBe PlaybackInputAction.SEEK_BACKWARD
 		}
 
-		test("ignored events do not consume the rate limit window") {
-			val m = ScrollSeekMapper(minIntervalMs = 275)
-			m.onScroll(0.25f, 1_000)
-			m.onScroll(0.01f, 1_100) shouldBe null
-			m.onScroll(-0.25f, 1_300) shouldBe PlaybackInputAction.SEEK_BACKWARD
+		test("a pause between pushes starts a new push with an immediate step") {
+			val m = ScrollSeekMapper(pushGapMs = 300)
+			m.onScroll(0.25f, 0) shouldBe PlaybackInputAction.SEEK_FORWARD
+			m.onScroll(0.25f, 100) shouldBe null
+			m.onScroll(0.25f, 500) shouldBe PlaybackInputAction.SEEK_FORWARD
+		}
+
+		test("stray opposite events inside a push are ignored") {
+			val m = ScrollSeekMapper(flipConfirmCount = 3)
+			m.onScroll(0.25f, 0) shouldBe PlaybackInputAction.SEEK_FORWARD
+			m.onScroll(-0.2f, 16) shouldBe null
+			m.onScroll(-0.2f, 32) shouldBe null
+			m.onScroll(0.25f, 48) shouldBe null
+			m.onScroll(-0.2f, 64) shouldBe null
+			m.onScroll(-0.2f, 80) shouldBe null
+		}
+
+		test("enough opposite events in a row reverse direction immediately") {
+			val m = ScrollSeekMapper(flipConfirmCount = 3)
+			m.onScroll(0.25f, 0)
+			m.onScroll(-0.2f, 16) shouldBe null
+			m.onScroll(-0.2f, 32) shouldBe null
+			m.onScroll(-0.2f, 48) shouldBe PlaybackInputAction.SEEK_BACKWARD
+		}
+
+		test("dead zone values do not break up a push") {
+			val m = ScrollSeekMapper(pushGapMs = 300)
+			m.onScroll(0.25f, 0) shouldBe PlaybackInputAction.SEEK_FORWARD
+			m.onScroll(0.02f, 100) shouldBe null
+			m.onScroll(0.25f, 200) shouldBe null
 		}
 
 		test("reset allows an immediate step") {
@@ -46,6 +73,15 @@ class PointerPlaybackInputTest : FunSpec({
 			m.isHorizontalPush(-0.25f, 0.1f) shouldBe true
 			m.isHorizontalPush(0.25f, -0.3f) shouldBe false
 			m.isHorizontalPush(0.05f, 0f) shouldBe false
+		}
+	}
+
+	context("container versus control size") {
+		test("screen-sized views are containers and small views are controls") {
+			PointerPlayback.isContainerSized(1920, 1080, 1920, 1080) shouldBe true
+			PointerPlayback.isContainerSized(1600, 900, 1920, 1080) shouldBe true
+			PointerPlayback.isContainerSized(96, 96, 1920, 1080) shouldBe false
+			PointerPlayback.isContainerSized(1920, 200, 1920, 1080) shouldBe false
 		}
 	}
 

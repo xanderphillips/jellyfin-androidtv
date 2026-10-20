@@ -120,7 +120,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     private Animation showPopup;
     private Animation hidePopup;
     private final Handler mHandler = new Handler();
-    private final ScrollSeekMapper scrollSeek = new ScrollSeekMapper(0.1f, 275L);
+    private final ScrollSeekMapper scrollSeek = new ScrollSeekMapper();
     private final StickSeekRepeater stickSeek = new StickSeekRepeater(0.6f, 0.3f, 450L, 300L);
     private final Runnable stickSeekTick = new Runnable() {
         @Override
@@ -670,11 +670,11 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
 
         switch (action) {
             case SEEK_FORWARD:
-                controller.skipBy(org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipForwardLength())));
+                controller.skipNow(org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipForwardLength())));
                 setFadingEnabled(true);
                 return true;
             case SEEK_BACKWARD:
-                controller.skipBy(-org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipBackLength())));
+                controller.skipNow(-org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipBackLength())));
                 setFadingEnabled(true);
                 return true;
             case PLAY_PAUSE:
@@ -749,7 +749,11 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         }
         PlaybackInputAction action = scrollSeek.onScroll(h, android.os.SystemClock.uptimeMillis());
         InputDebugLog.INSTANCE.state("Fragment.onPointerScroll", "h=" + h + " action=" + action);
-        if (action != null) performInputAction(action);
+        if (action != null) {
+            // Show the controls so each skip has visible feedback
+            if (!leanbackOverlayFragment.isControlsOverlayVisible()) performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
+            performInputAction(action);
+        }
         return true;
     }
 
@@ -790,7 +794,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                     updateScrub(event, controller, false);
                     return true;
                 }
-                tapOnControl = PlaybackPointerHelperKt.isClickableAt(requireActivity().getWindow().getDecorView(), event.getRawX(), event.getRawY());
+                tapOnControl = PlaybackPointerHelperKt.isControlAt(requireActivity().getWindow().getDecorView(), event.getRawX(), event.getRawY());
                 return false;
             case MotionEvent.ACTION_MOVE:
                 if (!scrubbing) return false;

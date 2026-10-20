@@ -967,6 +967,17 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         skip(msec);
     }
 
+    /**
+     * Skips relative to the current position right away, without the delayed coalescing of skip(). Does nothing
+     * while a previous seek is still in progress so repeated requests cannot queue up.
+     */
+    public void skipNow(int msec) {
+        if (!hasInitializedVideoManager() || !(isPlaying() || isPaused()) || !spinnerOff || wasSeeking
+                || mVideoManager.getCurrentPosition() <= 0) return;
+        refreshCurrentPosition();
+        seek(Utils.getSafeSeekPosition(mCurrentPosition + msec, getDuration()));
+    }
+
     public void rewind() {
         UserSettingPreferences prefs = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class);
         skip(-prefs.get(UserSettingPreferences.Companion.getSkipBackLength()));

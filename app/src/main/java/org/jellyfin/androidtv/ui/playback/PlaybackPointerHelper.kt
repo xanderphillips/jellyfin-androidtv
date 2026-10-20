@@ -16,11 +16,16 @@ fun findVisibleViewById(root: View, id: Int, rawX: Float, rawY: Float): View? {
 	return null
 }
 
-/** True when the topmost visible view at the raw point, or one of its parents, is clickable. */
-fun isClickableAt(root: View, rawX: Float, rawY: Float): Boolean {
+/**
+ * True when the topmost visible view at the raw point, or a parent smaller than [PointerPlayback.isContainerSized],
+ * is clickable or focusable. Leanback's control buttons are focusable views, and the screen-sized
+ * containers around them are ignored so only real controls count.
+ */
+fun isControlAt(root: View, rawX: Float, rawY: Float): Boolean {
 	var view: View? = topViewAt(root, rawX, rawY)
 	while (view != null && view !== root) {
-		if (view.isClickable) return true
+		if (PointerPlayback.isContainerSized(view.width, view.height, root.width, root.height)) return false
+		if (view.isClickable || view.isFocusable) return true
 		view = view.parent as? View
 	}
 	return false
