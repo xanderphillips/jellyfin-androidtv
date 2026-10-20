@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.constant.getQualityProfiles
+import org.jellyfin.androidtv.preference.ThumbstickSkipLengths
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.base.Text
@@ -43,6 +44,11 @@ import org.koin.compose.koinInject
 import java.text.DecimalFormat
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+
+@Composable
+private fun formatSkipLength(ms: Int): String =
+	if (ms >= 60_000) stringResource(R.string.skip_length_minutes, ms / 60_000)
+	else stringResource(R.string.skip_length_seconds, ms / 1000)
 
 @Composable
 fun SettingsPlaybackAdvancedScreen() {
@@ -108,6 +114,28 @@ fun SettingsPlaybackAdvancedScreen() {
 					}
 				}
 			}
+		}
+
+		item {
+			var skipBack by rememberPreference(userSettingPreferences, UserSettingPreferences.thumbstickSkipBackLength)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.thumbstick_skip_back_length)) },
+				captionContent = { Text(formatSkipLength(ThumbstickSkipLengths.coerce(skipBack))) },
+				onClick = { skipBack = ThumbstickSkipLengths.next(skipBack) },
+				modifier = Modifier.focusKey("thumbstick_skip_back_length")
+			)
+		}
+
+		item {
+			var skipForward by rememberPreference(userSettingPreferences, UserSettingPreferences.thumbstickSkipForwardLength)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.thumbstick_skip_forward_length)) },
+				captionContent = { Text(formatSkipLength(ThumbstickSkipLengths.coerce(skipForward))) },
+				onClick = { skipForward = ThumbstickSkipLengths.next(skipForward) },
+				modifier = Modifier.focusKey("thumbstick_skip_forward_length")
+			)
 		}
 
 		item {

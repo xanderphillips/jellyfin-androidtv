@@ -9,8 +9,8 @@ class GamepadPlaybackInputTest : FunSpec({
 		GamepadPlaybackInput.actionForKey(KeyEvent.KEYCODE_BUTTON_X, false) shouldBe PlaybackInputAction.PLAY_PAUSE
 		GamepadPlaybackInput.actionForKey(KeyEvent.KEYCODE_BUTTON_X, true) shouldBe PlaybackInputAction.PLAY_PAUSE
 		GamepadPlaybackInput.actionForKey(KeyEvent.KEYCODE_BUTTON_Y, false) shouldBe PlaybackInputAction.TOGGLE_CONTROLS
-		GamepadPlaybackInput.actionForKey(KeyEvent.KEYCODE_BUTTON_THUMBL, false) shouldBe PlaybackInputAction.PREVIOUS_ITEM
-		GamepadPlaybackInput.actionForKey(KeyEvent.KEYCODE_BUTTON_THUMBR, false) shouldBe PlaybackInputAction.NEXT_ITEM
+		GamepadPlaybackInput.actionForKey(KeyEvent.KEYCODE_BUTTON_SELECT, false) shouldBe PlaybackInputAction.PREVIOUS_ITEM
+		GamepadPlaybackInput.actionForKey(KeyEvent.KEYCODE_BUTTON_START, false) shouldBe PlaybackInputAction.NEXT_ITEM
 	}
 
 	test("A toggles playback only while the controls are hidden") {
@@ -19,7 +19,7 @@ class GamepadPlaybackInputTest : FunSpec({
 	}
 
 	test("keys handled elsewhere or unrelated are not mapped") {
-		for (key in listOf(KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)) {
+		for (key in listOf(KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR)) {
 			GamepadPlaybackInput.actionForKey(key, false) shouldBe null
 		}
 	}

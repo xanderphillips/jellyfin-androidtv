@@ -139,6 +139,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     protected LeanbackOverlayFragment leanbackOverlayFragment;
 
     private final Lazy<org.jellyfin.sdk.api.client.ApiClient> api = inject(org.jellyfin.sdk.api.client.ApiClient.class);
+    private final Lazy<org.jellyfin.androidtv.preference.UserSettingPreferences> userSettingPreferences = inject(org.jellyfin.androidtv.preference.UserSettingPreferences.class);
     private final Lazy<MediaManager> mediaManager = inject(MediaManager.class);
     private final Lazy<VideoQueueManager> videoQueueManager = inject(VideoQueueManager.class);
     private final Lazy<PlaybackControllerContainer> playbackControllerContainer = inject(PlaybackControllerContainer.class);
@@ -658,11 +659,11 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
 
         switch (action) {
             case SEEK_FORWARD:
-                controller.fastForward();
+                controller.skipBy(org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipForwardLength())));
                 setFadingEnabled(true);
                 return true;
             case SEEK_BACKWARD:
-                controller.rewind();
+                controller.skipBy(-org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipBackLength())));
                 setFadingEnabled(true);
                 return true;
             case PLAY_PAUSE:

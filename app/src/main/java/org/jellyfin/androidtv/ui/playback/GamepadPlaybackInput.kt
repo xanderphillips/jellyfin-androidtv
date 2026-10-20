@@ -22,8 +22,8 @@ object GamepadPlaybackInput {
 		// With the controls visible A activates the focused control instead
 		KeyEvent.KEYCODE_BUTTON_A -> if (controlsVisible) null else PlaybackInputAction.PLAY_PAUSE
 		KeyEvent.KEYCODE_BUTTON_Y -> PlaybackInputAction.TOGGLE_CONTROLS
-		KeyEvent.KEYCODE_BUTTON_THUMBL -> PlaybackInputAction.PREVIOUS_ITEM
-		KeyEvent.KEYCODE_BUTTON_THUMBR -> PlaybackInputAction.NEXT_ITEM
+		KeyEvent.KEYCODE_BUTTON_SELECT -> PlaybackInputAction.PREVIOUS_ITEM
+		KeyEvent.KEYCODE_BUTTON_START -> PlaybackInputAction.NEXT_ITEM
 		else -> null
 	}
 }
