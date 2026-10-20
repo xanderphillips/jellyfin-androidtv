@@ -31,6 +31,7 @@ import org.jellyfin.androidtv.ui.playback.CustomPlaybackOverlayFragment
 import org.jellyfin.androidtv.ui.screensaver.InAppScreensaver
 import org.jellyfin.androidtv.ui.settings.compat.MainActivitySettings
 import org.jellyfin.androidtv.ui.startup.StartupActivity
+import org.jellyfin.androidtv.util.InputDebugLog
 import org.jellyfin.androidtv.util.applyTheme
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -144,6 +145,21 @@ class MainActivity : FragmentActivity() {
 		(this is CustomPlaybackOverlayFragment && onJoystickMotion(event)) ||
 			childFragmentManager.fragments.any { it.forwardJoystickMotion(event) }
 
-	override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean =
+	override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+		InputDebugLog.key("Activity.dispatchKeyEvent", this, event)
+		return super.dispatchKeyEvent(event)
+	}
+
+	override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+		InputDebugLog.motion("Activity.dispatchTouchEvent", this, ev)
+		return super.dispatchTouchEvent(ev)
+	}
+
+	override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+		InputDebugLog.motion("Activity.dispatchGenericMotionEvent", this, ev)
+		return dispatchGenericMotionEventInner(ev)
+	}
+
+	private fun dispatchGenericMotionEventInner(ev: MotionEvent): Boolean =
 		supportFragmentManager.fragments.any { it.forwardJoystickMotion(ev) } || super.dispatchGenericMotionEvent(ev)
 }
