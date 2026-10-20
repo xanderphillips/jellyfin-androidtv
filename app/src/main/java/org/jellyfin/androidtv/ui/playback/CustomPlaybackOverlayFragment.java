@@ -826,8 +826,12 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                     updateScrub(event, controller, false);
                     return true;
                 }
-                tapOnControl = leanbackOverlayFragment.isControlsOverlayVisible()
-                        && PlaybackPointerHelperKt.isControlAt(requireActivity().getWindow().getDecorView(), event.getRawX(), event.getRawY());
+                View control = leanbackOverlayFragment.isControlsOverlayVisible()
+                        ? PlaybackPointerHelperKt.controlAt(requireActivity().getWindow().getDecorView(), event.getRawX(), event.getRawY())
+                        : null;
+                tapOnControl = control != null;
+                // Focus the control now so the release is a click; otherwise the first tap only takes focus
+                if (control != null && !control.isFocused()) control.requestFocus();
                 InputDebugLog.INSTANCE.state("Fragment.onPointerTouch", "down overlayVisible=" + leanbackOverlayFragment.isControlsOverlayVisible() + " hitControl=" + tapOnControl);
                 return false;
             case MotionEvent.ACTION_MOVE:
