@@ -51,6 +51,7 @@ import org.jellyfin.androidtv.data.compat.StreamInfo;
 import org.jellyfin.androidtv.preference.UserPreferences;
 import org.jellyfin.androidtv.preference.constant.BufferLength;
 import org.jellyfin.androidtv.preference.constant.ZoomMode;
+import org.jellyfin.androidtv.util.InputDebugLog;
 import org.jellyfin.androidtv.util.sdk.SubtitleLanguageKt;
 import org.jellyfin.sdk.api.client.ApiClient;
 import org.jellyfin.sdk.model.api.MediaStream;
@@ -164,6 +165,7 @@ public class VideoManager {
                 if (playbackState == Player.STATE_BUFFERING) {
                     Timber.d("Player is buffering");
                 }
+                InputDebugLog.INSTANCE.state("Player.state", playbackState + " " + debugBufferInfo());
 
                 if (playbackState == Player.STATE_ENDED) {
                     if (mPlaybackControllerNotifiable != null) mPlaybackControllerNotifiable.onCompletion();
@@ -271,6 +273,14 @@ public class VideoManager {
                 .build(), true);
 
         return exoPlayerBuilder;
+    }
+
+    /** Debug-only: playback position versus how far ahead the player has buffered. */
+    @NonNull
+    public String debugBufferInfo() {
+        if (mExoPlayer == null) return "no player";
+        return "pos=" + mExoPlayer.getCurrentPosition() + " buffered=" + mExoPlayer.getBufferedPosition()
+                + " loading=" + mExoPlayer.isLoading() + " bufferPref=" + userPreferences.get(UserPreferences.Companion.getBufferLength());
     }
 
     public boolean isInitialized() {

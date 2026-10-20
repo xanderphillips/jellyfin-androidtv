@@ -977,7 +977,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                 || mVideoManager.getCurrentPosition() <= 0) return false;
         refreshCurrentPosition();
         InputDebugLog.INSTANCE.state("PlaybackController.skipNow", "msec=" + msec + " playMethod="
-                + (mCurrentStreamInfo == null ? "unknown" : mCurrentStreamInfo.getPlayMethod()) + " seekable=" + mVideoManager.isSeekable());
+                + (mCurrentStreamInfo == null ? "unknown" : mCurrentStreamInfo.getPlayMethod()) + " seekable=" + mVideoManager.isSeekable() + " " + mVideoManager.debugBufferInfo());
         seek(Utils.getSafeSeekPosition(mCurrentPosition + msec, getDuration()));
         return true;
     }
