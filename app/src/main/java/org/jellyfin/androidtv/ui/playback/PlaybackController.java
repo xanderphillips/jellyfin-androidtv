@@ -878,6 +878,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     public void pause() {
         Timber.i("pause called at %s", mCurrentPosition);
         InputDebugLog.INSTANCE.state("PlaybackController.pause", debugPlayerState());
+        InputDebugLog.INSTANCE.caller("PlaybackController.pause");
         seekPlayIntent.settle();
         // if playback is paused and the seekbar is scrubbed, it will call pause even if already paused
         if (mPlaybackState == PlaybackState.PAUSED) {
