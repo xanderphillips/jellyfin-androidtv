@@ -711,6 +711,10 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                 controller.isPlayingIntent() && !controller.isPaused(), controller.isLiveTv(), otherUi);
         if (action == HiddenDpadAction.NONE) return false;
 
+        // Leanback brings up the controls on any D-pad key regardless of what the listener returns;
+        // the overlay's own "should show" flag is the only thing that can stop it
+        leanbackOverlayFragment.setShouldShowOverlay(false);
+
         // Both the press and the release are used so nothing else reacts to the key and shows the controls
         if (event.getAction() == KeyEvent.ACTION_DOWN && action != HiddenDpadAction.SWALLOW) {
             org.jellyfin.androidtv.preference.UserSettingPreferences prefs = userSettingPreferences.getValue();
