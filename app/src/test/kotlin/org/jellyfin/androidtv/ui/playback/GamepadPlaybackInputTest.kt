@@ -106,19 +106,15 @@ class GamepadPlaybackInputTest : FunSpec({
 	}
 
 	context("seek bar d-pad skip") {
-		test("left and right on the focused seek bar skip while playing") {
-			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, isPlaying = true, seekBarFocused = true) shouldBe PlaybackInputAction.SEEK_FORWARD
-			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_LEFT, isPlaying = true, seekBarFocused = true) shouldBe PlaybackInputAction.SEEK_BACKWARD
-		}
-
-		test("paused video keeps the normal scrub behaviour") {
-			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, isPlaying = false, seekBarFocused = true) shouldBe null
+		test("left and right on the focused seek bar skip") {
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, seekBarFocused = true) shouldBe PlaybackInputAction.SEEK_FORWARD
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_LEFT, seekBarFocused = true) shouldBe PlaybackInputAction.SEEK_BACKWARD
 		}
 
 		test("other focus or other keys are left alone") {
-			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, isPlaying = true, seekBarFocused = false) shouldBe null
-			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_CENTER, isPlaying = true, seekBarFocused = true) shouldBe null
-			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_UP, isPlaying = true, seekBarFocused = true) shouldBe null
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, seekBarFocused = false) shouldBe null
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_CENTER, seekBarFocused = true) shouldBe null
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_UP, seekBarFocused = true) shouldBe null
 		}
 	}
 
@@ -145,9 +141,14 @@ class GamepadPlaybackInputTest : FunSpec({
 			action(KeyEvent.KEYCODE_DPAD_CENTER, playing = false) shouldBe HiddenDpadAction.NONE
 		}
 
-		test("visible controls, paused video, live TV and other UI keep the normal behaviour") {
+		test("paused video skips and swallows the same way but centre keeps resuming") {
+			action(KeyEvent.KEYCODE_DPAD_RIGHT, playing = false) shouldBe HiddenDpadAction.SKIP_FORWARD
+			action(KeyEvent.KEYCODE_DPAD_LEFT, playing = false) shouldBe HiddenDpadAction.SKIP_BACKWARD
+			action(KeyEvent.KEYCODE_DPAD_DOWN, playing = false) shouldBe HiddenDpadAction.SWALLOW
+		}
+
+		test("visible controls, live TV and other UI keep the normal behaviour") {
 			action(KeyEvent.KEYCODE_DPAD_RIGHT, hidden = false) shouldBe HiddenDpadAction.NONE
-			action(KeyEvent.KEYCODE_DPAD_RIGHT, playing = false) shouldBe HiddenDpadAction.NONE
 			action(KeyEvent.KEYCODE_DPAD_RIGHT, live = true) shouldBe HiddenDpadAction.NONE
 			action(KeyEvent.KEYCODE_DPAD_UP, other = true) shouldBe HiddenDpadAction.NONE
 		}

@@ -202,12 +202,12 @@ class SkipAccumulator(private val quietMs: Long = 400L) {
 
 /**
  * Left and right on the focused seek bar normally start Leanback's scrub mode, which pauses the video until
- * the position is confirmed. While the video is playing they skip instead, so playback never pauses; scrubbing
- * with thumbnails stays available when the video is paused.
+ * the position is confirmed and only previews the position while paused. They skip instead, playing or paused:
+ * a real seek by the configured amount, leaving the play state as it was and nothing waiting to be confirmed.
  */
 object SeekBarDpadSkip {
-	fun actionFor(keyCode: Int, isPlaying: Boolean, seekBarFocused: Boolean): PlaybackInputAction? = when {
-		!isPlaying || !seekBarFocused -> null
+	fun actionFor(keyCode: Int, seekBarFocused: Boolean): PlaybackInputAction? = when {
+		!seekBarFocused -> null
 		keyCode == KeyEvent.KEYCODE_DPAD_RIGHT -> PlaybackInputAction.SEEK_FORWARD
 		keyCode == KeyEvent.KEYCODE_DPAD_LEFT -> PlaybackInputAction.SEEK_BACKWARD
 		else -> null
@@ -218,8 +218,9 @@ object SeekBarDpadSkip {
 enum class HiddenDpadAction { SKIP_BACKWARD, SKIP_FORWARD, SWALLOW, SHOW_CONTROLS, NONE }
 
 /**
- * With the controls hidden and the video playing, left and right skip, up and down do nothing, and the centre
- * key only brings the controls up (it does not pause). Everything else (paused, live TV, guide, popups) keeps the normal behaviour.
+ * With the controls hidden, left and right skip and up and down do nothing, whether playing or paused, so the
+ * D-pad never pulls the controls up. While playing the centre key only brings the controls up (it does not
+ * pause); while paused it keeps its normal behaviour of resuming. Live TV, the guide and popups are unchanged.
  */
 object HiddenOverlayDpad {
 	fun actionFor(
@@ -229,11 +230,11 @@ object HiddenOverlayDpad {
 		isLiveTv: Boolean,
 		otherUiVisible: Boolean,
 	): HiddenDpadAction = when {
-		!overlayHidden || !isPlaying || isLiveTv || otherUiVisible -> HiddenDpadAction.NONE
+		!overlayHidden || isLiveTv || otherUiVisible -> HiddenDpadAction.NONE
 		keyCode == KeyEvent.KEYCODE_DPAD_LEFT -> HiddenDpadAction.SKIP_BACKWARD
 		keyCode == KeyEvent.KEYCODE_DPAD_RIGHT -> HiddenDpadAction.SKIP_FORWARD
 		keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> HiddenDpadAction.SWALLOW
-		keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER -> HiddenDpadAction.SHOW_CONTROLS
+		isPlaying && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) -> HiddenDpadAction.SHOW_CONTROLS
 		else -> HiddenDpadAction.NONE
 	}
 }

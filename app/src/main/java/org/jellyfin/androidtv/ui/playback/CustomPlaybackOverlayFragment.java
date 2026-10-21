@@ -600,15 +600,15 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                     PlaybackController skipController = playbackControllerContainer.getValue().getPlaybackController();
                     if (!skipController.isLiveTv()) {
                         View focused = requireActivity().getCurrentFocus();
-                        PlaybackInputAction dpadSkip = SeekBarDpadSkip.INSTANCE.actionFor(keyCode, skipController.isPlayingIntent(),
+                        PlaybackInputAction dpadSkip = SeekBarDpadSkip.INSTANCE.actionFor(keyCode,
                                 focused != null && focused.getId() == androidx.leanback.R.id.playback_progress);
                         if (dpadSkip == PlaybackInputAction.SEEK_FORWARD) {
                             skipController.fastForward(event.getRepeatCount() > 0);
-                            setFadingEnabled(true);
+                            if (!skipController.isPaused()) setFadingEnabled(true);
                             return true;
                         } else if (dpadSkip == PlaybackInputAction.SEEK_BACKWARD) {
                             skipController.rewind(event.getRepeatCount() > 0);
-                            setFadingEnabled(true);
+                            if (!skipController.isPaused()) setFadingEnabled(true);
                             return true;
                         }
                     }

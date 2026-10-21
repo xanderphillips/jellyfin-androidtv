@@ -434,6 +434,9 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                 }
                 wasSeeking = false;
                 seekPlayIntent.settle();
+            } else if (isPaused() && mSeekPosition == -1) {
+                // paused with no seek pending: the player's own position, not a value from before the pause
+                newPos = mVideoManager.getCurrentPosition();
             }
         }
         // use original value if new one isn't available
@@ -1151,12 +1154,20 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         public void run() {
             Integer delta = remoteSkip.next(SystemClock.uptimeMillis(), isSeekBusy());
             if (delta != null) {
-                if (skipNow(delta)) remoteSkipRetries = 0;
+                if (skipNow(delta)) {
+                    remoteSkipRetries = 0;
+                    refreshOverlayPosition();
+                }
                 else if (remoteSkipRetries++ < MAX_QUEUE_RETRIES) remoteSkip.restore(delta);
             }
             if (remoteSkip.getHasPending()) mHandler.postDelayed(this, QUEUE_POLL_MS);
         }
     };
+
+    /** Moves the seek bar to the position we just asked for, which matters while paused when nothing else updates it. */
+    private void refreshOverlayPosition() {
+        if (mFragment != null && mFragment.leanbackOverlayFragment != null) mFragment.leanbackOverlayFragment.updateCurrentPosition();
+    }
 
     private final LatestSeekQueue seekQueue = new LatestSeekQueue();
     private int queuedSeekRetries = 0;
@@ -1167,6 +1178,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             if (target != null) {
                 queuedSeekRetries = 0;
                 seek(target);
+                refreshOverlayPosition();
             } else if (queuedSeekRetries++ >= MAX_QUEUE_RETRIES) {
                 seekQueue.clear();
             }
