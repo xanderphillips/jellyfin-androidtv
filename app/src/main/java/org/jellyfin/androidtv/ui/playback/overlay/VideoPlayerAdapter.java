@@ -96,6 +96,7 @@ public class VideoPlayerAdapter extends PlayerAdapter {
 
     @Override
     public void seekTo(long positionInMs) {
+        org.jellyfin.androidtv.util.InputDebugLog.INSTANCE.state("VideoPlayerAdapter.seekTo", "target=" + positionInMs + " current=" + getCurrentPosition() + " duration=" + getDuration());
         playbackController.seekQueued(positionInMs);
         updateCurrentPosition();
     }

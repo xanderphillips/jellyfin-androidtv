@@ -15,6 +15,7 @@ import coil3.size.Dimension
 import coil3.size.Size
 import coil3.toBitmap
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.util.InputDebugLog
 import org.jellyfin.androidtv.util.coil.SubsetTransformation
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.trickplayApi
@@ -63,6 +64,7 @@ class CustomSeekProvider(
 		}
 
 		currentSeekPositions = seekPositions.toLongArray()
+		InputDebugLog.state("CustomSeekProvider", "current=$currentSeekPosition step=$forwardTime")
 		return currentSeekPositions
 	}
 

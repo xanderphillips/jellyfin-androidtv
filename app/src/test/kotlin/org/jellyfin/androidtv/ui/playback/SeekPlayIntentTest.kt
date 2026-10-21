@@ -44,3 +44,22 @@ class SeekPlayIntentTest : FunSpec({
 		SeekPlayIntent.wantsPlayback(isPaused = false, isIdleOrError = true) shouldBe false
 	}
 })
+
+class SeekBusyTest : FunSpec({
+	test("no seek in progress is never busy") {
+		SeekBusy.isBusy(wasSeeking = false, isPaused = true, streamSeekable = true) shouldBe false
+		SeekBusy.isBusy(wasSeeking = false, isPaused = false, streamSeekable = true) shouldBe false
+	}
+
+	test("a playing player with the flag set is busy") {
+		SeekBusy.isBusy(wasSeeking = true, isPaused = false, streamSeekable = true) shouldBe true
+	}
+
+	test("a paused seekable stream is not held up by a stale flag") {
+		SeekBusy.isBusy(wasSeeking = true, isPaused = true, streamSeekable = true) shouldBe false
+	}
+
+	test("a paused stream that must be rebuilt stays busy") {
+		SeekBusy.isBusy(wasSeeking = true, isPaused = true, streamSeekable = false) shouldBe true
+	}
+})

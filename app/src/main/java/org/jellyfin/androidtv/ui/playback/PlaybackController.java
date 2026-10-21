@@ -262,6 +262,15 @@ public class PlaybackController implements PlaybackControllerNotifiable {
 
     private final SeekPlayIntent seekPlayIntent = new SeekPlayIntent();
 
+    /**
+     * True while a previous seek is still settling. A paused player never clears the seeking flag (it only
+     * clears while playing), so a paused seekable stream is not treated as busy; otherwise short skips and
+     * scrubs after a quick pause would be ignored.
+     */
+    private boolean isSeekBusy() {
+        return SeekBusy.INSTANCE.isBusy(wasSeeking, isPaused(), hasInitializedVideoManager() && mVideoManager.isSeekable());
+    }
+
     private void scheduleEnsurePlaying(long delayMs) {
         mHandler.postDelayed(() -> {
             if (mPlaybackState == PlaybackState.PLAYING && hasInitializedVideoManager() && !mVideoManager.getPlayWhenReady()) {
@@ -1004,9 +1013,15 @@ public class PlaybackController implements PlaybackControllerNotifiable {
      * while a previous seek is still in progress so repeated requests cannot queue up.
      */
     public boolean skipNow(int msec) {
-        if (!hasInitializedVideoManager() || !(isPlaying() || isPaused()) || !spinnerOff || wasSeeking
-                || mVideoManager.getCurrentPosition() <= 0) return false;
+        if (!hasInitializedVideoManager() || !(isPlaying() || isPaused()) || !spinnerOff || isSeekBusy()
+                || mVideoManager.getCurrentPosition() <= 0) {
+            InputDebugLog.INSTANCE.state("PlaybackController.skipNow", "refused msec=" + msec + " init=" + hasInitializedVideoManager()
+                    + " spinnerOff=" + spinnerOff + " busy=" + isSeekBusy() + " " + debugPlayerState());
+            return false;
+        }
         refreshCurrentPosition();
+        InputDebugLog.INSTANCE.state("PlaybackController.skipNow", "base mCurrentPosition=" + mCurrentPosition + " mSeekPosition=" + mSeekPosition
+                + " exoPosition=" + mVideoManager.getCurrentPosition() + " msec=" + msec);
         InputDebugLog.INSTANCE.state("PlaybackController.skipNow", "msec=" + msec + " playMethod="
                 + (mCurrentStreamInfo == null ? "unknown" : mCurrentStreamInfo.getPlayMethod()) + " seekable=" + mVideoManager.isSeekable() + " " + mVideoManager.debugBufferInfo());
         seek(Utils.getSafeSeekPosition(mCurrentPosition + msec, getDuration()));
@@ -1036,7 +1051,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             return;
         }
 
-        if (wasSeeking) {
+        if (isSeekBusy()) {
             Timber.d("Previous seek has not finished - cancelling seek from %s to %d", mCurrentPosition, pos);
             if (isPaused()) {
                 refreshCurrentPosition();
@@ -1134,7 +1149,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     private final Runnable remoteSkipTick = new Runnable() {
         @Override
         public void run() {
-            Integer delta = remoteSkip.next(SystemClock.uptimeMillis(), wasSeeking);
+            Integer delta = remoteSkip.next(SystemClock.uptimeMillis(), isSeekBusy());
             if (delta != null) {
                 if (skipNow(delta)) remoteSkipRetries = 0;
                 else if (remoteSkipRetries++ < MAX_QUEUE_RETRIES) remoteSkip.restore(delta);
@@ -1148,7 +1163,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     private final Runnable queuedSeekTick = new Runnable() {
         @Override
         public void run() {
-            Long target = seekQueue.take(wasSeeking || !hasInitializedVideoManager());
+            Long target = seekQueue.take(isSeekBusy() || !hasInitializedVideoManager());
             if (target != null) {
                 queuedSeekRetries = 0;
                 seek(target);
