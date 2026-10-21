@@ -13,7 +13,6 @@ import org.jellyfin.androidtv.preference.UserPreferences;
 import org.jellyfin.androidtv.preference.UserSettingPreferences;
 import org.jellyfin.androidtv.ui.playback.CustomPlaybackOverlayFragment;
 import org.jellyfin.androidtv.ui.playback.PlaybackController;
-import org.jellyfin.androidtv.util.InputDebugLog;
 import org.jellyfin.androidtv.ui.playback.PlaybackControllerContainer;
 import org.jellyfin.sdk.api.client.ApiClient;
 
@@ -62,9 +61,7 @@ public class LeanbackOverlayFragment extends PlaybackSupportFragment {
 
     @Override
     public void showControlsOverlay(boolean runAnimation) {
-        InputDebugLog.INSTANCE.state("Leanback.showControlsOverlay", "shouldShow=" + shouldShowOverlay);
         if (shouldShowOverlay) {
-            InputDebugLog.INSTANCE.caller("Leanback.showControlsOverlay");
             super.showControlsOverlay(runAnimation);
             playerAdapter.getMasterOverlayFragment().show();
         }

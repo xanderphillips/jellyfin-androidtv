@@ -27,7 +27,6 @@ import org.jellyfin.androidtv.preference.constant.ZoomMode;
 import org.jellyfin.androidtv.ui.InteractionTrackerViewModel;
 import org.jellyfin.androidtv.ui.livetv.TvManager;
 import org.jellyfin.androidtv.util.TimeUtils;
-import org.jellyfin.androidtv.util.InputDebugLog;
 import org.jellyfin.androidtv.util.Utils;
 import org.jellyfin.androidtv.util.apiclient.ReportingHelper;
 import org.jellyfin.androidtv.util.apiclient.Response;
@@ -274,16 +273,9 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     private void scheduleEnsurePlaying(long delayMs) {
         mHandler.postDelayed(() -> {
             if (mPlaybackState == PlaybackState.PLAYING && hasInitializedVideoManager() && !mVideoManager.getPlayWhenReady()) {
-                InputDebugLog.INSTANCE.state("PlaybackController.ensurePlaying", "player was not playing after a seek, resuming " + debugPlayerState());
                 mVideoManager.play();
             }
         }, delayMs);
-    }
-
-    private String debugPlayerState() {
-        return "state=" + mPlaybackState + " wasSeeking=" + wasSeeking + " playWhenReady="
-                + (hasInitializedVideoManager() && mVideoManager.getPlayWhenReady()) + " exoPlaying="
-                + (hasInitializedVideoManager() && mVideoManager.isPlaying());
     }
 
     public boolean isPlaying() {
@@ -889,8 +881,6 @@ public class PlaybackController implements PlaybackControllerNotifiable {
 
     public void pause() {
         Timber.i("pause called at %s", mCurrentPosition);
-        InputDebugLog.INSTANCE.state("PlaybackController.pause", debugPlayerState());
-        InputDebugLog.INSTANCE.caller("PlaybackController.pause");
         seekPlayIntent.settle();
         // if playback is paused and the seekbar is scrubbed, it will call pause even if already paused
         if (mPlaybackState == PlaybackState.PAUSED) {
@@ -1018,15 +1008,9 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     public boolean skipNow(int msec) {
         if (!hasInitializedVideoManager() || !(isPlaying() || isPaused()) || !spinnerOff || isSeekBusy()
                 || mVideoManager.getCurrentPosition() <= 0) {
-            InputDebugLog.INSTANCE.state("PlaybackController.skipNow", "refused msec=" + msec + " init=" + hasInitializedVideoManager()
-                    + " spinnerOff=" + spinnerOff + " busy=" + isSeekBusy() + " " + debugPlayerState());
             return false;
         }
         refreshCurrentPosition();
-        InputDebugLog.INSTANCE.state("PlaybackController.skipNow", "base mCurrentPosition=" + mCurrentPosition + " mSeekPosition=" + mSeekPosition
-                + " exoPosition=" + mVideoManager.getCurrentPosition() + " msec=" + msec);
-        InputDebugLog.INSTANCE.state("PlaybackController.skipNow", "msec=" + msec + " playMethod="
-                + (mCurrentStreamInfo == null ? "unknown" : mCurrentStreamInfo.getPlayMethod()) + " seekable=" + mVideoManager.isSeekable() + " " + mVideoManager.debugBufferInfo());
         seek(Utils.getSafeSeekPosition(mCurrentPosition + msec, getDuration()));
         return true;
     }
@@ -1123,7 +1107,6 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             // if seek() is called from skip()
             // Carry on playing only if playback was running before the seek (or before the first of a quick series)
             boolean resumeAfterSeek = seekPlayIntent.begin(mPlaybackState != PlaybackState.PAUSED);
-            InputDebugLog.INSTANCE.state("PlaybackController.seek", "pos=" + pos + " resume=" + resumeAfterSeek + " " + debugPlayerState());
             mPlaybackState = PlaybackState.SEEKING;
             if (mVideoManager.seekTo(pos) < 0) {
                 if (mFragment != null)

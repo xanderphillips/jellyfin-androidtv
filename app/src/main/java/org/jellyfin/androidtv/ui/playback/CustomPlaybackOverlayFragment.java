@@ -64,7 +64,6 @@ import org.jellyfin.androidtv.ui.livetv.TvManager;
 import org.jellyfin.androidtv.ui.navigation.Destinations;
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository;
 import org.jellyfin.androidtv.ui.playback.overlay.LeanbackOverlayFragment;
-import org.jellyfin.androidtv.util.InputDebugLog;
 import org.jellyfin.androidtv.ui.presentation.CardPresenter;
 import org.jellyfin.androidtv.ui.presentation.ChannelCardPresenter;
 import org.jellyfin.androidtv.ui.presentation.MutableObjectAdapter;
@@ -422,7 +421,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
 
     @Override
     public boolean onKey(View v, int keyCode, KeyEvent event) {
-        logState("Fragment.onKey", event);
         if (event.isLongPress()) {
             if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
                 if (mSelectedProgramView instanceof ProgramGridCell)
@@ -491,7 +489,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     private View.OnKeyListener keyListener = new View.OnKeyListener() {
         @Override
         public boolean onKey(View v, int keyCode, KeyEvent event) {
-            logState("Fragment.keyIntercept", event);
             if (handleDpadWithHiddenControls(keyCode, event)) return true;
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (!mGuideVisible)
@@ -667,12 +664,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         }
     };
 
-    private void logState(String where, KeyEvent event) {
-        InputDebugLog.INSTANCE.key(where, getActivity(), event);
-        InputDebugLog.INSTANCE.state(where, "visible=" + mIsVisible + " popup=" + mPopupPanelVisible + " guide=" + mGuideVisible
-                + " overlay=" + (leanbackOverlayFragment != null && leanbackOverlayFragment.isControlsOverlayVisible()));
-    }
-
     private final SkipAccumulator stickSkips = new SkipAccumulator(0L);
     private int stickSkipRetries = 0;
     private final Runnable stickSkipTick = new Runnable() {
@@ -796,7 +787,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
      */
     public boolean onJoystickMotion(@NonNull MotionEvent event) {
         if (!isResumed() || mGuideVisible || mPopupPanelVisible) {
-            InputDebugLog.INSTANCE.state("Fragment.onJoystickMotion", "gate1 return: resumed=" + isResumed() + " guide=" + mGuideVisible + " popup=" + mPopupPanelVisible);
             return false;
         }
         if ((event.getActionMasked() == MotionEvent.ACTION_HOVER_MOVE || event.getActionMasked() == MotionEvent.ACTION_HOVER_ENTER)
@@ -810,13 +800,11 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         }
         if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK
                 || event.getActionMasked() != MotionEvent.ACTION_MOVE) {
-            InputDebugLog.INSTANCE.state("Fragment.onJoystickMotion", "gate2 return: not joystick MOVE source=0x" + Integer.toHexString(event.getSource()) + " action=" + event.getActionMasked());
             return false;
         }
 
         PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
         if (controller == null || !controller.canSeek()) {
-            InputDebugLog.INSTANCE.state("Fragment.onJoystickMotion", "gate3 return: controller=" + controller + " canSeek=" + (controller != null && controller.canSeek()));
             return false;
         }
 
@@ -826,7 +814,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                 event.getAxisValue(MotionEvent.AXIS_HAT_X),
                 event.getAxisValue(MotionEvent.AXIS_Y),
                 android.os.SystemClock.uptimeMillis());
-        InputDebugLog.INSTANCE.state("Fragment.onJoystickMotion", "repeater consumed=" + result.getConsumed() + " action=" + result.getAction());
         if (result.getAction() != null) performInputAction(result.getAction());
         if (stickSeek.isEngaged() && !wasEngaged) mHandler.postDelayed(stickSeekTick, 50);
         return result.getConsumed();
@@ -841,11 +828,9 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         float h = event.getAxisValue(MotionEvent.AXIS_HSCROLL);
         float v = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
         if (controller == null || !controller.canSeek() || !scrollSeek.isHorizontalPush(h, v)) {
-            InputDebugLog.INSTANCE.state("Fragment.onPointerScroll", "ignored h=" + h + " v=" + v);
             return false;
         }
         PlaybackInputAction action = scrollSeek.onScroll(h, android.os.SystemClock.uptimeMillis());
-        InputDebugLog.INSTANCE.state("Fragment.onPointerScroll", "h=" + h + " action=" + action);
         if (action != null) {
             // Show the controls so each skip has visible feedback
             if (!leanbackOverlayFragment.isControlsOverlayVisible()) performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
@@ -907,7 +892,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                 tapOnControl = control != null;
                 // Focus the control now so the release is a click; otherwise the first tap only takes focus
                 if (control != null && !control.isFocused()) control.requestFocus();
-                InputDebugLog.INSTANCE.state("Fragment.onPointerTouch", "down overlayVisible=" + leanbackOverlayFragment.isControlsOverlayVisible() + " hitControl=" + tapOnControl);
                 return false;
             case MotionEvent.ACTION_MOVE:
                 if (!scrubbing) return false;
@@ -925,7 +909,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                 boolean tap = PointerPlayback.INSTANCE.isTap(event.getRawX() - tapDownX, event.getRawY() - tapDownY,
                         event.getEventTime() - tapDownTime, slop, 500L);
                 if (PointerPlayback.INSTANCE.shouldToggleControlsOnTap(tap, tapOnControl, popupOrGuide)) {
-                    InputDebugLog.INSTANCE.state("Fragment.onPointerTouch", "tap toggles controls");
                     performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
                 }
                 return false;
@@ -945,7 +928,6 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         long duration = controller.getDuration();
         long position = PointerPlayback.INSTANCE.seekPositionMs(event.getRawX(), loc[0], scrubBar.getWidth(), duration);
         if (commit) {
-            InputDebugLog.INSTANCE.state("Fragment.onPointerTouch", "scrub commit " + position + "ms of " + duration);
             controller.seek(position);
         }
     }

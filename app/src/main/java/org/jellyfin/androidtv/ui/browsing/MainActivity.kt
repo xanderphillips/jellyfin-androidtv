@@ -1,6 +1,5 @@
 package org.jellyfin.androidtv.ui.browsing
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
@@ -32,7 +31,6 @@ import org.jellyfin.androidtv.ui.playback.CustomPlaybackOverlayFragment
 import org.jellyfin.androidtv.ui.screensaver.InAppScreensaver
 import org.jellyfin.androidtv.ui.settings.compat.MainActivitySettings
 import org.jellyfin.androidtv.ui.startup.StartupActivity
-import org.jellyfin.androidtv.util.InputDebugLog
 import org.jellyfin.androidtv.util.applyTheme
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -146,20 +144,12 @@ class MainActivity : FragmentActivity() {
 		(this is CustomPlaybackOverlayFragment && block(this)) ||
 			childFragmentManager.fragments.any { it.forwardToPlayer(block) }
 
-	@SuppressLint("RestrictedApi") // Debug-only input logging
-	override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-		InputDebugLog.key("Activity.dispatchKeyEvent", this, event)
-		return super.dispatchKeyEvent(event)
-	}
-
 	override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-		InputDebugLog.motion("Activity.dispatchTouchEvent", this, ev)
 		return supportFragmentManager.fragments.any { it.forwardToPlayer { player -> player.onPointerTouch(ev) } } ||
 			super.dispatchTouchEvent(ev)
 	}
 
 	override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
-		InputDebugLog.motion("Activity.dispatchGenericMotionEvent", this, ev)
 		return supportFragmentManager.fragments.any { it.forwardToPlayer { player -> player.onJoystickMotion(ev) } } ||
 			super.dispatchGenericMotionEvent(ev)
 	}
