@@ -593,6 +593,7 @@
     <string name="segment_type_recap">Recaps</string>
     <string name="segment_type_unknown">Unknown segments</string>
     <string name="skip_forward_length">Skip forward length</string>
+    <string name="skip_indicator" tools:ignore="PluralsCandidate">%1$+d s</string>
     <string name="skip_back_length">Skip back length</string>
     <string name="skip_length_seconds" tools:ignore="PluralsCandidate">%1$d sec</string>
     <string name="skip_length_minutes">%1$d min</string>

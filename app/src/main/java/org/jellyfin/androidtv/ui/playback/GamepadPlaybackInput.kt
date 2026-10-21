@@ -214,3 +214,26 @@ object SeekBarDpadSkip {
 	}
 }
 
+/** What the D-pad does while a video is playing with the controls hidden. */
+enum class HiddenDpadAction { SKIP_BACKWARD, SKIP_FORWARD, SWALLOW, NONE }
+
+/**
+ * With the controls hidden and the video playing, left and right skip and up and down do nothing, so only the
+ * centre key brings the controls up. Everything else (paused, live TV, guide, popups) keeps the normal behaviour.
+ */
+object HiddenOverlayDpad {
+	fun actionFor(
+		keyCode: Int,
+		overlayHidden: Boolean,
+		isPlaying: Boolean,
+		isLiveTv: Boolean,
+		otherUiVisible: Boolean,
+	): HiddenDpadAction = when {
+		!overlayHidden || !isPlaying || isLiveTv || otherUiVisible -> HiddenDpadAction.NONE
+		keyCode == KeyEvent.KEYCODE_DPAD_LEFT -> HiddenDpadAction.SKIP_BACKWARD
+		keyCode == KeyEvent.KEYCODE_DPAD_RIGHT -> HiddenDpadAction.SKIP_FORWARD
+		keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> HiddenDpadAction.SWALLOW
+		else -> HiddenDpadAction.NONE
+	}
+}
+

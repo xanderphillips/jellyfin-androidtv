@@ -22,6 +22,7 @@ import android.view.animation.AnimationUtils;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -491,6 +492,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         @Override
         public boolean onKey(View v, int keyCode, KeyEvent event) {
             logState("Fragment.keyIntercept", event);
+            if (handleDpadWithHiddenControls(keyCode, event)) return true;
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (!mGuideVisible)
                     leanbackOverlayFragment.setShouldShowOverlay(true);
@@ -694,6 +696,40 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     }
 
     /** Shows the controls when a skip key is pressed with them hidden, so the skip has visible feedback. */
+    private Toast skipIndicator;
+
+    /**
+     * While playing with the controls hidden, left/right skip, up/down do nothing and nothing shows the
+     * controls; the centre key is left to its usual behaviour. Returns true when the key was used.
+     */
+    private boolean handleDpadWithHiddenControls(int keyCode, KeyEvent event) {
+        PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+        if (controller == null || leanbackOverlayFragment == null) return false;
+        boolean overlayHidden = !mIsVisible && !leanbackOverlayFragment.isControlsOverlayVisible();
+        boolean otherUi = mGuideVisible || mPopupPanelVisible || binding.skipOverlay.getVisible();
+        HiddenDpadAction action = HiddenOverlayDpad.INSTANCE.actionFor(keyCode, overlayHidden,
+                controller.isPlayingIntent() && !controller.isPaused(), controller.isLiveTv(), otherUi);
+        if (action == HiddenDpadAction.NONE) return false;
+
+        // Both the press and the release are used so nothing else reacts to the key and shows the controls
+        if (event.getAction() == KeyEvent.ACTION_DOWN && action != HiddenDpadAction.SWALLOW) {
+            org.jellyfin.androidtv.preference.UserSettingPreferences prefs = userSettingPreferences.getValue();
+            int ms = action == HiddenDpadAction.SKIP_FORWARD
+                    ? prefs.get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getSkipForwardLength())
+                    : -prefs.get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getSkipBackLength());
+            if (ms > 0) controller.fastForward(event.getRepeatCount() > 0);
+            else controller.rewind(event.getRepeatCount() > 0);
+            showSkipIndicator(ms / 1000);
+        }
+        return true;
+    }
+
+    private void showSkipIndicator(int seconds) {
+        if (skipIndicator != null) skipIndicator.cancel();
+        skipIndicator = Toast.makeText(requireContext(), getString(R.string.skip_indicator, seconds), Toast.LENGTH_SHORT);
+        skipIndicator.show();
+    }
+
     private void showControlsForSkip() {
         if (leanbackOverlayFragment != null && !leanbackOverlayFragment.isControlsOverlayVisible()) {
             performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
