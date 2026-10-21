@@ -104,4 +104,21 @@ class GamepadPlaybackInputTest : FunSpec({
 			r.tick(10_000) shouldBe null
 		}
 	}
+
+	context("seek bar d-pad skip") {
+		test("left and right on the focused seek bar skip while playing") {
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, isPlaying = true, seekBarFocused = true) shouldBe PlaybackInputAction.SEEK_FORWARD
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_LEFT, isPlaying = true, seekBarFocused = true) shouldBe PlaybackInputAction.SEEK_BACKWARD
+		}
+
+		test("paused video keeps the normal scrub behaviour") {
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, isPlaying = false, seekBarFocused = true) shouldBe null
+		}
+
+		test("other focus or other keys are left alone") {
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, isPlaying = true, seekBarFocused = false) shouldBe null
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_CENTER, isPlaying = true, seekBarFocused = true) shouldBe null
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_UP, isPlaying = true, seekBarFocused = true) shouldBe null
+		}
+	}
 })

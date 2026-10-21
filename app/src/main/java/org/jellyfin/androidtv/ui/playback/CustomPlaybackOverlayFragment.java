@@ -594,6 +594,23 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                         if (gamepadAction != null && performInputAction(gamepadAction)) return true;
                     }
 
+                    // D-pad left/right on the seek bar while playing skips instead of pausing for scrub mode
+                    PlaybackController skipController = playbackControllerContainer.getValue().getPlaybackController();
+                    if (!skipController.isLiveTv()) {
+                        View focused = requireActivity().getCurrentFocus();
+                        PlaybackInputAction dpadSkip = SeekBarDpadSkip.INSTANCE.actionFor(keyCode, skipController.isPlayingIntent(),
+                                focused != null && focused.getId() == androidx.leanback.R.id.playback_progress);
+                        if (dpadSkip == PlaybackInputAction.SEEK_FORWARD) {
+                            skipController.fastForward(event.getRepeatCount() > 0);
+                            setFadingEnabled(true);
+                            return true;
+                        } else if (dpadSkip == PlaybackInputAction.SEEK_BACKWARD) {
+                            skipController.rewind(event.getRepeatCount() > 0);
+                            setFadingEnabled(true);
+                            return true;
+                        }
+                    }
+
                     // Control fast forward and rewind if overlay hidden and not showing live TV
                     if (!playbackControllerContainer.getValue().getPlaybackController().isLiveTv()) {
                         if (keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || keyCode == KeyEvent.KEYCODE_BUTTON_R1 || keyCode == KeyEvent.KEYCODE_BUTTON_R2) {

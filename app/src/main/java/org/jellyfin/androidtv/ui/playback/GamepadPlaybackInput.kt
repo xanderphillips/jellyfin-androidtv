@@ -199,3 +199,18 @@ class SkipAccumulator(private val quietMs: Long = 400L) {
 		pendingMs += deltaMs
 	}
 }
+
+/**
+ * Left and right on the focused seek bar normally start Leanback's scrub mode, which pauses the video until
+ * the position is confirmed. While the video is playing they skip instead, so playback never pauses; scrubbing
+ * with thumbnails stays available when the video is paused.
+ */
+object SeekBarDpadSkip {
+	fun actionFor(keyCode: Int, isPlaying: Boolean, seekBarFocused: Boolean): PlaybackInputAction? = when {
+		!isPlaying || !seekBarFocused -> null
+		keyCode == KeyEvent.KEYCODE_DPAD_RIGHT -> PlaybackInputAction.SEEK_FORWARD
+		keyCode == KeyEvent.KEYCODE_DPAD_LEFT -> PlaybackInputAction.SEEK_BACKWARD
+		else -> null
+	}
+}
+
