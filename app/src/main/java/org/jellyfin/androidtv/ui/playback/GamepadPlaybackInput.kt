@@ -215,11 +215,11 @@ object SeekBarDpadSkip {
 }
 
 /** What the D-pad does while a video is playing with the controls hidden. */
-enum class HiddenDpadAction { SKIP_BACKWARD, SKIP_FORWARD, SWALLOW, NONE }
+enum class HiddenDpadAction { SKIP_BACKWARD, SKIP_FORWARD, SWALLOW, SHOW_CONTROLS, NONE }
 
 /**
- * With the controls hidden and the video playing, left and right skip and up and down do nothing, so only the
- * centre key brings the controls up. Everything else (paused, live TV, guide, popups) keeps the normal behaviour.
+ * With the controls hidden and the video playing, left and right skip, up and down do nothing, and the centre
+ * key only brings the controls up (it does not pause). Everything else (paused, live TV, guide, popups) keeps the normal behaviour.
  */
 object HiddenOverlayDpad {
 	fun actionFor(
@@ -233,6 +233,7 @@ object HiddenOverlayDpad {
 		keyCode == KeyEvent.KEYCODE_DPAD_LEFT -> HiddenDpadAction.SKIP_BACKWARD
 		keyCode == KeyEvent.KEYCODE_DPAD_RIGHT -> HiddenDpadAction.SKIP_FORWARD
 		keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> HiddenDpadAction.SWALLOW
+		keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER -> HiddenDpadAction.SHOW_CONTROLS
 		else -> HiddenDpadAction.NONE
 	}
 }

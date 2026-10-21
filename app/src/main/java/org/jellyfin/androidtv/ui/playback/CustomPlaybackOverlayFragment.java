@@ -711,6 +711,15 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                 controller.isPlayingIntent() && !controller.isPaused(), controller.isLiveTv(), otherUi);
         if (action == HiddenDpadAction.NONE) return false;
 
+        if (action == HiddenDpadAction.SHOW_CONTROLS) {
+            // Centre only brings the controls up; it no longer toggles play/pause
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                leanbackOverlayFragment.setShouldShowOverlay(true);
+                leanbackOverlayFragment.showControlsOverlay(true);
+            }
+            return true;
+        }
+
         // Leanback brings up the controls on any D-pad key regardless of what the listener returns;
         // the overlay's own "should show" flag is the only thing that can stop it
         leanbackOverlayFragment.setShouldShowOverlay(false);

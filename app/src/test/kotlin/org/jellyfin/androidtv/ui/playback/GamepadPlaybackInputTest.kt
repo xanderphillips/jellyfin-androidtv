@@ -136,9 +136,13 @@ class GamepadPlaybackInputTest : FunSpec({
 			action(KeyEvent.KEYCODE_DPAD_DOWN) shouldBe HiddenDpadAction.SWALLOW
 		}
 
-		test("the centre key keeps its normal behaviour") {
-			action(KeyEvent.KEYCODE_DPAD_CENTER) shouldBe HiddenDpadAction.NONE
-			action(KeyEvent.KEYCODE_ENTER) shouldBe HiddenDpadAction.NONE
+		test("the centre key only shows the controls") {
+			action(KeyEvent.KEYCODE_DPAD_CENTER) shouldBe HiddenDpadAction.SHOW_CONTROLS
+			action(KeyEvent.KEYCODE_ENTER) shouldBe HiddenDpadAction.SHOW_CONTROLS
+		}
+
+		test("the centre key on a paused video keeps its normal behaviour") {
+			action(KeyEvent.KEYCODE_DPAD_CENTER, playing = false) shouldBe HiddenDpadAction.NONE
 		}
 
 		test("visible controls, paused video, live TV and other UI keep the normal behaviour") {
