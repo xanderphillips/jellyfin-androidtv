@@ -13,6 +13,7 @@ import android.view.KeyEvent;
 import android.view.InputDevice;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
+import android.view.ViewConfiguration;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -21,6 +22,7 @@ import android.view.animation.AnimationUtils;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -118,6 +120,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     private Animation showPopup;
     private Animation hidePopup;
     private final Handler mHandler = new Handler();
+    private final ScrollSeekMapper scrollSeek = new ScrollSeekMapper();
     private final StickSeekRepeater stickSeek = new StickSeekRepeater(0.6f, 0.3f, 450L, 300L);
     private final Runnable stickSeekTick = new Runnable() {
         @Override
@@ -486,6 +489,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     private View.OnKeyListener keyListener = new View.OnKeyListener() {
         @Override
         public boolean onKey(View v, int keyCode, KeyEvent event) {
+            if (handleDpadWithHiddenControls(keyCode, event)) return true;
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (!mGuideVisible)
                     leanbackOverlayFragment.setShouldShowOverlay(true);
@@ -589,16 +593,35 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                         if (gamepadAction != null && performInputAction(gamepadAction)) return true;
                     }
 
+                    // D-pad left/right on the seek bar while playing skips instead of pausing for scrub mode
+                    PlaybackController skipController = playbackControllerContainer.getValue().getPlaybackController();
+                    if (!skipController.isLiveTv()) {
+                        View focused = requireActivity().getCurrentFocus();
+                        PlaybackInputAction dpadSkip = SeekBarDpadSkip.INSTANCE.actionFor(keyCode,
+                                focused != null && focused.getId() == androidx.leanback.R.id.playback_progress);
+                        if (dpadSkip == PlaybackInputAction.SEEK_FORWARD) {
+                            skipController.fastForward(event.getRepeatCount() > 0);
+                            if (!skipController.isPaused()) setFadingEnabled(true);
+                            return true;
+                        } else if (dpadSkip == PlaybackInputAction.SEEK_BACKWARD) {
+                            skipController.rewind(event.getRepeatCount() > 0);
+                            if (!skipController.isPaused()) setFadingEnabled(true);
+                            return true;
+                        }
+                    }
+
                     // Control fast forward and rewind if overlay hidden and not showing live TV
                     if (!playbackControllerContainer.getValue().getPlaybackController().isLiveTv()) {
                         if (keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || keyCode == KeyEvent.KEYCODE_BUTTON_R1 || keyCode == KeyEvent.KEYCODE_BUTTON_R2) {
-                            playbackControllerContainer.getValue().getPlaybackController().fastForward();
+                            playbackControllerContainer.getValue().getPlaybackController().fastForward(event.getRepeatCount() > 0);
+                            showControlsForSkip();
                             setFadingEnabled(true);
                             return true;
                         }
 
                         if (keyCode == KeyEvent.KEYCODE_MEDIA_REWIND || keyCode == KeyEvent.KEYCODE_BUTTON_L1 || keyCode == KeyEvent.KEYCODE_BUTTON_L2) {
-                            playbackControllerContainer.getValue().getPlaybackController().rewind();
+                            playbackControllerContainer.getValue().getPlaybackController().rewind(event.getRepeatCount() > 0);
+                            showControlsForSkip();
                             setFadingEnabled(true);
                             return true;
                         }
@@ -641,6 +664,82 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         }
     };
 
+    private final SkipAccumulator stickSkips = new SkipAccumulator(0L);
+    private int stickSkipRetries = 0;
+    private final Runnable stickSkipTick = new Runnable() {
+        @Override
+        public void run() {
+            PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+            Integer delta = stickSkips.takeIfQuiet(android.os.SystemClock.uptimeMillis());
+            if (delta != null && controller != null) {
+                if (controller.skipNow(delta)) stickSkipRetries = 0;
+                else if (stickSkipRetries++ < 30) stickSkips.restore(delta);
+            }
+            if (stickSkips.getHasPending()) mHandler.postDelayed(this, 100);
+        }
+    };
+
+    /** Skips as soon as the player can seek; steps requested while a seek runs are added together instead of dropped. */
+    private void queueStickSkip(int deltaMs) {
+        stickSkips.add(deltaMs, android.os.SystemClock.uptimeMillis());
+        mHandler.removeCallbacks(stickSkipTick);
+        mHandler.post(stickSkipTick);
+    }
+
+    /** Shows the controls when a skip key is pressed with them hidden, so the skip has visible feedback. */
+    private Toast skipIndicator;
+
+    /**
+     * While playing with the controls hidden, left/right skip, up/down do nothing and nothing shows the
+     * controls; the centre key is left to its usual behaviour. Returns true when the key was used.
+     */
+    private boolean handleDpadWithHiddenControls(int keyCode, KeyEvent event) {
+        PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+        if (controller == null || leanbackOverlayFragment == null) return false;
+        boolean overlayHidden = !mIsVisible && !leanbackOverlayFragment.isControlsOverlayVisible();
+        boolean otherUi = mGuideVisible || mPopupPanelVisible || binding.skipOverlay.getVisible();
+        HiddenDpadAction action = HiddenOverlayDpad.INSTANCE.actionFor(keyCode, overlayHidden,
+                controller.isPlayingIntent() && !controller.isPaused(), controller.isLiveTv(), otherUi);
+        if (action == HiddenDpadAction.NONE) return false;
+
+        if (action == HiddenDpadAction.SHOW_CONTROLS) {
+            // Centre only brings the controls up; it no longer toggles play/pause
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                leanbackOverlayFragment.setShouldShowOverlay(true);
+                leanbackOverlayFragment.showControlsOverlay(true);
+            }
+            return true;
+        }
+
+        // Leanback brings up the controls on any D-pad key regardless of what the listener returns;
+        // the overlay's own "should show" flag is the only thing that can stop it
+        leanbackOverlayFragment.setShouldShowOverlay(false);
+
+        // Both the press and the release are used so nothing else reacts to the key and shows the controls
+        if (event.getAction() == KeyEvent.ACTION_DOWN && action != HiddenDpadAction.SWALLOW) {
+            org.jellyfin.androidtv.preference.UserSettingPreferences prefs = userSettingPreferences.getValue();
+            int ms = action == HiddenDpadAction.SKIP_FORWARD
+                    ? prefs.get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getSkipForwardLength())
+                    : -prefs.get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getSkipBackLength());
+            if (ms > 0) controller.fastForward(event.getRepeatCount() > 0);
+            else controller.rewind(event.getRepeatCount() > 0);
+            showSkipIndicator(ms / 1000);
+        }
+        return true;
+    }
+
+    private void showSkipIndicator(int seconds) {
+        if (skipIndicator != null) skipIndicator.cancel();
+        skipIndicator = Toast.makeText(requireContext(), getString(R.string.skip_indicator, seconds), Toast.LENGTH_SHORT);
+        skipIndicator.show();
+    }
+
+    private void showControlsForSkip() {
+        if (leanbackOverlayFragment != null && !leanbackOverlayFragment.isControlsOverlayVisible()) {
+            performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
+        }
+    }
+
     private boolean performInputAction(PlaybackInputAction action) {
         PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
         if (controller == null) return false;
@@ -659,11 +758,11 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
 
         switch (action) {
             case SEEK_FORWARD:
-                controller.skipBy(org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipForwardLength())));
+                queueStickSkip(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getSkipForwardLength()));
                 setFadingEnabled(true);
                 return true;
             case SEEK_BACKWARD:
-                controller.skipBy(-org.jellyfin.androidtv.preference.ThumbstickSkipLengths.INSTANCE.coerce(userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getThumbstickSkipBackLength())));
+                queueStickSkip(-userSettingPreferences.getValue().get(org.jellyfin.androidtv.preference.UserSettingPreferences.Companion.getSkipBackLength()));
                 setFadingEnabled(true);
                 return true;
             case PLAY_PAUSE:
@@ -687,12 +786,27 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
      * was used so the framework does not also turn it into D-pad key presses.
      */
     public boolean onJoystickMotion(@NonNull MotionEvent event) {
-        if (!isResumed() || mGuideVisible || mPopupPanelVisible) return false;
+        if (!isResumed() || mGuideVisible || mPopupPanelVisible) {
+            return false;
+        }
+        if ((event.getActionMasked() == MotionEvent.ACTION_HOVER_MOVE || event.getActionMasked() == MotionEvent.ACTION_HOVER_ENTER)
+                && mFadeEnabled && leanbackOverlayFragment != null && leanbackOverlayFragment.isControlsOverlayVisible()) {
+            // Keep the controls up while the pointer is moving over the player
+            startFadeTimer();
+        }
+        if (event.getActionMasked() == MotionEvent.ACTION_SCROLL
+                && (event.getSource() & InputDevice.SOURCE_CLASS_POINTER) != 0) {
+            return onPointerScroll(event);
+        }
         if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK
-                || event.getActionMasked() != MotionEvent.ACTION_MOVE) return false;
+                || event.getActionMasked() != MotionEvent.ACTION_MOVE) {
+            return false;
+        }
 
         PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
-        if (controller == null || !controller.canSeek()) return false;
+        if (controller == null || !controller.canSeek()) {
+            return false;
+        }
 
         boolean wasEngaged = stickSeek.isEngaged();
         StickSeekRepeater.Result result = stickSeek.onAxes(
@@ -703,6 +817,119 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         if (result.getAction() != null) performInputAction(result.getAction());
         if (stickSeek.isEngaged() && !wasEngaged) mHandler.postDelayed(stickSeekTick, 50);
         return result.getConsumed();
+    }
+
+    /**
+     * Meta Quest reports the left thumbstick as pointer scroll events; left/right skips. Anything that
+     * is not a horizontal push on a seekable video is left for the framework (e.g. list scrolling).
+     */
+    private boolean onPointerScroll(MotionEvent event) {
+        PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+        float h = event.getAxisValue(MotionEvent.AXIS_HSCROLL);
+        float v = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
+        if (controller == null || !controller.canSeek() || !scrollSeek.isHorizontalPush(h, v)) {
+            return false;
+        }
+        PlaybackInputAction action = scrollSeek.onScroll(h, android.os.SystemClock.uptimeMillis());
+        if (action != null) {
+            // Show the controls so each skip has visible feedback
+            if (!leanbackOverlayFragment.isControlsOverlayVisible()) performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
+            performInputAction(action);
+        }
+        return true;
+    }
+
+    private long pointerControlUpAt = Long.MIN_VALUE;
+
+    /** True if a pointer press on an overlay control just ended, i.e. the click being handled came from the pointer. */
+    public boolean consumePointerControlClick() {
+        boolean recent = pointerControlUpAt != Long.MIN_VALUE
+                && android.os.SystemClock.uptimeMillis() - pointerControlUpAt < 500L;
+        pointerControlUpAt = Long.MIN_VALUE;
+        return recent;
+    }
+
+    private float tapDownX;
+    private float tapDownY;
+    private long tapDownTime;
+    private boolean tapOnControl;
+    private boolean scrubbing;
+    private View scrubBar;
+
+    /**
+     * Called for every touch event the activity receives. Taps on the video toggle the controls, and
+     * touching or dragging the seek bar scrubs, committing the seek on release. Returns true when the
+     * event was used for scrubbing so the seek bar does not also treat it as a click.
+     */
+    public boolean onPointerTouch(@NonNull MotionEvent event) {
+        if (!isResumed() || leanbackOverlayFragment == null) return false;
+        PlaybackController controller = playbackControllerContainer.getValue().getPlaybackController();
+        if (controller == null) return false;
+
+        // Keep the controls up while the pointer is interacting
+        if (mFadeEnabled && leanbackOverlayFragment.isControlsOverlayVisible()) startFadeTimer();
+
+        boolean popupOrGuide = mGuideVisible || mPopupPanelVisible;
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                tapDownX = event.getRawX();
+                tapDownY = event.getRawY();
+                tapDownTime = event.getEventTime();
+                scrubbing = false;
+                scrubBar = null;
+                View bar = popupOrGuide || !controller.canSeek() || !leanbackOverlayFragment.isControlsOverlayVisible()
+                        ? null : PlaybackPointerHelperKt.findVisibleViewById(requireActivity().getWindow().getDecorView(),
+                        androidx.leanback.R.id.playback_progress, event.getRawX(), event.getRawY());
+                if (bar != null) {
+                    scrubbing = true;
+                    scrubBar = bar;
+                    updateScrub(event, controller, false);
+                    return true;
+                }
+                View control = leanbackOverlayFragment.isControlsOverlayVisible()
+                        ? PlaybackPointerHelperKt.controlAt(requireActivity().getWindow().getDecorView(), event.getRawX(), event.getRawY())
+                        : null;
+                tapOnControl = control != null;
+                // Focus the control now so the release is a click; otherwise the first tap only takes focus
+                if (control != null && !control.isFocused()) control.requestFocus();
+                return false;
+            case MotionEvent.ACTION_MOVE:
+                if (!scrubbing) return false;
+                updateScrub(event, controller, false);
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (scrubbing) {
+                    updateScrub(event, controller, true);
+                    scrubbing = false;
+                    scrubBar = null;
+                    return true;
+                }
+                if (tapOnControl) pointerControlUpAt = event.getEventTime();
+                float slop = ViewConfiguration.get(requireContext()).getScaledTouchSlop();
+                boolean tap = PointerPlayback.INSTANCE.isTap(event.getRawX() - tapDownX, event.getRawY() - tapDownY,
+                        event.getEventTime() - tapDownTime, slop, 500L);
+                if (PointerPlayback.INSTANCE.shouldToggleControlsOnTap(tap, tapOnControl, popupOrGuide)) {
+                    performInputAction(PlaybackInputAction.TOGGLE_CONTROLS);
+                }
+                return false;
+            case MotionEvent.ACTION_CANCEL:
+                scrubbing = false;
+                scrubBar = null;
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    private void updateScrub(MotionEvent event, PlaybackController controller, boolean commit) {
+        if (scrubBar == null) return;
+        int[] loc = new int[2];
+        scrubBar.getLocationOnScreen(loc);
+        long duration = controller.getDuration();
+        long position = PointerPlayback.INSTANCE.seekPositionMs(event.getRawX(), loc[0], scrubBar.getWidth(), duration);
+        if (commit) {
+            controller.seek(position);
+        }
     }
 
     public LocalDateTime getCurrentLocalStartDate() {
@@ -769,6 +996,8 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     public void onPause() {
         super.onPause();
         stickSeek.reset();
+        scrollSeek.reset();
+        mHandler.removeCallbacks(stickSkipTick);
         mHandler.removeCallbacks(stickSeekTick);
         if (mItemsToPlay == null || mItemsToPlay.isEmpty()) return;
 

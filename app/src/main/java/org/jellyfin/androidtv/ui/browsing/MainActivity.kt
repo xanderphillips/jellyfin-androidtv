@@ -138,12 +138,19 @@ class MainActivity : FragmentActivity() {
 	override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean =
 		onKeyEvent(keyCode, event) || super.onKeyUp(keyCode, event)
 
-	// Thumbstick input for video playback (e.g. Meta Quest controllers)
+	// Controller and pointer input for the video player (e.g. Meta Quest)
 
-	private fun Fragment.forwardJoystickMotion(event: MotionEvent): Boolean =
-		(this is CustomPlaybackOverlayFragment && onJoystickMotion(event)) ||
-			childFragmentManager.fragments.any { it.forwardJoystickMotion(event) }
+	private fun Fragment.forwardToPlayer(block: (CustomPlaybackOverlayFragment) -> Boolean): Boolean =
+		(this is CustomPlaybackOverlayFragment && block(this)) ||
+			childFragmentManager.fragments.any { it.forwardToPlayer(block) }
 
-	override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean =
-		supportFragmentManager.fragments.any { it.forwardJoystickMotion(ev) } || super.dispatchGenericMotionEvent(ev)
+	override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+		return supportFragmentManager.fragments.any { it.forwardToPlayer { player -> player.onPointerTouch(ev) } } ||
+			super.dispatchTouchEvent(ev)
+	}
+
+	override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+		return supportFragmentManager.fragments.any { it.forwardToPlayer { player -> player.onJoystickMotion(ev) } } ||
+			super.dispatchGenericMotionEvent(ev)
+	}
 }

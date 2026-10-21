@@ -42,6 +42,7 @@
     <string name="lbl_play">Play</string>
     <string name="lbl_pause">Pause</string>
     <string name="lbl_exit">Exit</string>
+    <string name="lbl_stop">Stop</string>
     <string name="lbl_cancel">Cancel</string>
     <string name="lbl_cancel_recording">Cancel recording</string>
     <string name="lbl_cancel_series">Cancel series</string>
@@ -592,8 +593,8 @@
     <string name="segment_type_recap">Recaps</string>
     <string name="segment_type_unknown">Unknown segments</string>
     <string name="skip_forward_length">Skip forward length</string>
-    <string name="thumbstick_skip_back_length">Thumbstick skip back length</string>
-    <string name="thumbstick_skip_forward_length">Thumbstick skip forward length</string>
+    <string name="skip_indicator" tools:ignore="PluralsCandidate">%1$+d s</string>
+    <string name="skip_back_length">Skip back length</string>
     <string name="skip_length_seconds" tools:ignore="PluralsCandidate">%1$d sec</string>
     <string name="skip_length_minutes">%1$d min</string>
     <string name="preference_enable_trickplay">Enable trickplay in video player</string>
@@ -606,6 +607,8 @@
     <string name="fast_forward">Fast forward</string>
     <string name="rewind">Rewind</string>
     <string name="preference_enable_pgs">Direct play PGS subtitles</string>
+    <string name="pref_prefer_h264_transcode">Prefer H.264 when transcoding</string>
+    <string name="pref_prefer_h264_transcode_description">Ask the server for H.264 instead of HEVC when it has to transcode. Much faster on servers without hardware encoding, so seeking is smoother, but the stream is larger.</string>
     <string name="pref_burn_subtitles_when_transcoding">Burn in subtitles when transcoding</string>
     <string name="pref_burn_subtitles_when_transcoding_description">Always burn subtitles into the video during transcoding. This can fix subtitle sync issues but disables subtitle customization.</string>
     <string name="speech_error_no_permission">No permission to use the microphone. Please enable it in system settings.</string>

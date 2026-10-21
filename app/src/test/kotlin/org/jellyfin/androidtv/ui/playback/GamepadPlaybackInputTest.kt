@@ -104,4 +104,53 @@ class GamepadPlaybackInputTest : FunSpec({
 			r.tick(10_000) shouldBe null
 		}
 	}
+
+	context("seek bar d-pad skip") {
+		test("left and right on the focused seek bar skip") {
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, seekBarFocused = true) shouldBe PlaybackInputAction.SEEK_FORWARD
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_LEFT, seekBarFocused = true) shouldBe PlaybackInputAction.SEEK_BACKWARD
+		}
+
+		test("other focus or other keys are left alone") {
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_RIGHT, seekBarFocused = false) shouldBe null
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_CENTER, seekBarFocused = true) shouldBe null
+			SeekBarDpadSkip.actionFor(KeyEvent.KEYCODE_DPAD_UP, seekBarFocused = true) shouldBe null
+		}
+	}
+
+	context("d-pad with the controls hidden") {
+		fun action(key: Int, hidden: Boolean = true, playing: Boolean = true, live: Boolean = false, other: Boolean = false) =
+			HiddenOverlayDpad.actionFor(key, hidden, playing, live, other)
+
+		test("left and right skip while playing") {
+			action(KeyEvent.KEYCODE_DPAD_LEFT) shouldBe HiddenDpadAction.SKIP_BACKWARD
+			action(KeyEvent.KEYCODE_DPAD_RIGHT) shouldBe HiddenDpadAction.SKIP_FORWARD
+		}
+
+		test("up and down are swallowed so they do not show the controls") {
+			action(KeyEvent.KEYCODE_DPAD_UP) shouldBe HiddenDpadAction.SWALLOW
+			action(KeyEvent.KEYCODE_DPAD_DOWN) shouldBe HiddenDpadAction.SWALLOW
+		}
+
+		test("the centre key only shows the controls") {
+			action(KeyEvent.KEYCODE_DPAD_CENTER) shouldBe HiddenDpadAction.SHOW_CONTROLS
+			action(KeyEvent.KEYCODE_ENTER) shouldBe HiddenDpadAction.SHOW_CONTROLS
+		}
+
+		test("the centre key on a paused video keeps its normal behaviour") {
+			action(KeyEvent.KEYCODE_DPAD_CENTER, playing = false) shouldBe HiddenDpadAction.NONE
+		}
+
+		test("paused video skips and swallows the same way but centre keeps resuming") {
+			action(KeyEvent.KEYCODE_DPAD_RIGHT, playing = false) shouldBe HiddenDpadAction.SKIP_FORWARD
+			action(KeyEvent.KEYCODE_DPAD_LEFT, playing = false) shouldBe HiddenDpadAction.SKIP_BACKWARD
+			action(KeyEvent.KEYCODE_DPAD_DOWN, playing = false) shouldBe HiddenDpadAction.SWALLOW
+		}
+
+		test("visible controls, live TV and other UI keep the normal behaviour") {
+			action(KeyEvent.KEYCODE_DPAD_RIGHT, hidden = false) shouldBe HiddenDpadAction.NONE
+			action(KeyEvent.KEYCODE_DPAD_RIGHT, live = true) shouldBe HiddenDpadAction.NONE
+			action(KeyEvent.KEYCODE_DPAD_UP, other = true) shouldBe HiddenDpadAction.NONE
+		}
+	}
 })

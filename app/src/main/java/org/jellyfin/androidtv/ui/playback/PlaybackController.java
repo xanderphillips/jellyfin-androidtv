@@ -6,6 +6,7 @@ import static org.koin.java.KoinJavaComponent.inject;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.view.Display;
 import android.view.WindowManager;
 
@@ -249,6 +250,34 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         return mItems != null && mCurrentIndex - 1 >= 0;
     }
 
+    /**
+     * True while playback is meant to be running, including while it buffers after a seek. The seek bar uses
+     * this to decide whether to resume after scrubbing; the plain isPlaying() is false during buffering.
+     */
+    public boolean isPlayingIntent() {
+        return SeekPlayIntent.Companion.wantsPlayback(mPlaybackState == PlaybackState.PAUSED,
+                mPlaybackState == PlaybackState.IDLE || mPlaybackState == PlaybackState.ERROR);
+    }
+
+    private final SeekPlayIntent seekPlayIntent = new SeekPlayIntent();
+
+    /**
+     * True while a previous seek is still settling. A paused player never clears the seeking flag (it only
+     * clears while playing), so a paused seekable stream is not treated as busy; otherwise short skips and
+     * scrubs after a quick pause would be ignored.
+     */
+    private boolean isSeekBusy() {
+        return SeekBusy.INSTANCE.isBusy(wasSeeking, isPaused(), hasInitializedVideoManager() && mVideoManager.isSeekable());
+    }
+
+    private void scheduleEnsurePlaying(long delayMs) {
+        mHandler.postDelayed(() -> {
+            if (mPlaybackState == PlaybackState.PLAYING && hasInitializedVideoManager() && !mVideoManager.getPlayWhenReady()) {
+                mVideoManager.play();
+            }
+        }, delayMs);
+    }
+
     public boolean isPlaying() {
         // since playbackController is so closely tied to videoManager, check if it is playing too since they can fall out of sync
         return mPlaybackState == PlaybackState.PLAYING && hasInitializedVideoManager() && mVideoManager.isPlaying();
@@ -396,6 +425,10 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                     newPos = mSeekPosition;
                 }
                 wasSeeking = false;
+                seekPlayIntent.settle();
+            } else if (isPaused() && mSeekPosition == -1) {
+                // paused with no seek pending: the player's own position, not a value from before the pause
+                newPos = mVideoManager.getCurrentPosition();
             }
         }
         // use original value if new one isn't available
@@ -848,6 +881,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
 
     public void pause() {
         Timber.i("pause called at %s", mCurrentPosition);
+        seekPlayIntent.settle();
         // if playback is paused and the seekbar is scrubbed, it will call pause even if already paused
         if (mPlaybackState == PlaybackState.PAUSED) {
             Timber.d("already paused, ignoring");
@@ -959,17 +993,35 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     }
 
     public void fastForward() {
-        UserSettingPreferences prefs = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class);
-        skip(prefs.get(UserSettingPreferences.Companion.getSkipForwardLength()));
+        fastForward(false);
     }
 
-    public void skipBy(int msec) {
-        skip(msec);
+    public void fastForward(boolean isRepeat) {
+        UserSettingPreferences prefs = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class);
+        requestSkip(prefs.get(UserSettingPreferences.Companion.getSkipForwardLength()), isRepeat);
+    }
+
+    /**
+     * Skips relative to the current position right away, without waiting for further presses. Does nothing
+     * while a previous seek is still in progress so repeated requests cannot queue up.
+     */
+    public boolean skipNow(int msec) {
+        if (!hasInitializedVideoManager() || !(isPlaying() || isPaused()) || !spinnerOff || isSeekBusy()
+                || mVideoManager.getCurrentPosition() <= 0) {
+            return false;
+        }
+        refreshCurrentPosition();
+        seek(Utils.getSafeSeekPosition(mCurrentPosition + msec, getDuration()));
+        return true;
     }
 
     public void rewind() {
+        rewind(false);
+    }
+
+    public void rewind(boolean isRepeat) {
         UserSettingPreferences prefs = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class);
-        skip(-prefs.get(UserSettingPreferences.Companion.getSkipBackLength()));
+        requestSkip(-prefs.get(UserSettingPreferences.Companion.getSkipBackLength()), isRepeat);
     }
 
     public void seek(long pos) {
@@ -986,7 +1038,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             return;
         }
 
-        if (wasSeeking) {
+        if (isSeekBusy()) {
             Timber.d("Previous seek has not finished - cancelling seek from %s to %d", mCurrentPosition, pos);
             if (isPaused()) {
                 refreshCurrentPosition();
@@ -1053,40 +1105,90 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             // if seek succeeds call play and mirror the logic in play() for unpausing. if fails call pause()
             // stopProgressLoop() being called at the beginning of startProgressLoop keeps this from breaking. otherwise it would start twice
             // if seek() is called from skip()
+            // Carry on playing only if playback was running before the seek (or before the first of a quick series)
+            boolean resumeAfterSeek = seekPlayIntent.begin(mPlaybackState != PlaybackState.PAUSED);
             mPlaybackState = PlaybackState.SEEKING;
             if (mVideoManager.seekTo(pos) < 0) {
                 if (mFragment != null)
                     Utils.showToast(mFragment.getContext(), mFragment.getString(R.string.seek_error));
+                seekPlayIntent.settle();
                 pause();
-            } else {
+            } else if (resumeAfterSeek) {
                 mVideoManager.play();
                 mPlaybackState = PlaybackState.PLAYING;
                 if (mFragment != null) mFragment.setFadingEnabled(true);
                 startReportLoop();
+                scheduleEnsurePlaying(1_500L);
+                scheduleEnsurePlaying(4_000L);
+            } else {
+                // A seek while paused moves the position and leaves the video paused
+                mPlaybackState = PlaybackState.PAUSED;
+                wasSeeking = false;
+                seekPlayIntent.settle();
             }
         }
     }
 
     private long currentSkipPos = 0;
-    private final Runnable skipRunnable = () -> {
-        if (!(isPlaying() || isPaused())) return; // in case we completed since this was requested
-
-        seek(currentSkipPos);
-        currentSkipPos = 0;
+    private final RemoteSkipPlanner remoteSkip = new RemoteSkipPlanner(500L, 300L);
+    private int remoteSkipRetries = 0;
+    private final Runnable remoteSkipTick = new Runnable() {
+        @Override
+        public void run() {
+            Integer delta = remoteSkip.next(SystemClock.uptimeMillis(), isSeekBusy());
+            if (delta != null) {
+                if (skipNow(delta)) {
+                    remoteSkipRetries = 0;
+                    refreshOverlayPosition();
+                }
+                else if (remoteSkipRetries++ < MAX_QUEUE_RETRIES) remoteSkip.restore(delta);
+            }
+            if (remoteSkip.getHasPending()) mHandler.postDelayed(this, QUEUE_POLL_MS);
+        }
     };
 
-    private void skip(int msec) {
-        if (hasInitializedVideoManager() && (isPlaying() || isPaused()) && spinnerOff && mVideoManager.getCurrentPosition() > 0) { //guard against skipping before playback has truly begun
-            mHandler.removeCallbacks(skipRunnable);
-            refreshCurrentPosition();
-            currentSkipPos = Utils.getSafeSeekPosition((currentSkipPos == 0 ? mCurrentPosition : currentSkipPos) + msec, getDuration());
+    /** Moves the seek bar to the position we just asked for, which matters while paused when nothing else updates it. */
+    private void refreshOverlayPosition() {
+        if (mFragment != null && mFragment.leanbackOverlayFragment != null) mFragment.leanbackOverlayFragment.updateCurrentPosition();
+    }
 
-            Timber.i("Skip amount requested was %s. Calculated position is %s", msec, currentSkipPos);
-            Timber.i("Duration reported as: %s current pos: %s", getDuration(), mCurrentPosition);
-
-            mSeekPosition = currentSkipPos;
-            mHandler.postDelayed(skipRunnable, 800);
+    private final LatestSeekQueue seekQueue = new LatestSeekQueue();
+    private int queuedSeekRetries = 0;
+    private final Runnable queuedSeekTick = new Runnable() {
+        @Override
+        public void run() {
+            Long target = seekQueue.take(isSeekBusy() || !hasInitializedVideoManager());
+            if (target != null) {
+                queuedSeekRetries = 0;
+                seek(target);
+                refreshOverlayPosition();
+            } else if (queuedSeekRetries++ >= MAX_QUEUE_RETRIES) {
+                seekQueue.clear();
+            }
+            if (seekQueue.getHasPending()) mHandler.postDelayed(this, QUEUE_POLL_MS);
         }
+    };
+
+    private static final int MAX_QUEUE_RETRIES = 30;
+    private static final long QUEUE_POLL_MS = 100L;
+
+    /**
+     * Skips by a user-configured amount. The first press seeks right away; presses while a seek is running add
+     * up into the next seek instead of being dropped, and held-key repeats are thinned.
+     */
+    private void requestSkip(int msec, boolean isRepeat) {
+        if (!remoteSkip.onPress(msec, isRepeat, SystemClock.uptimeMillis())) return;
+        remoteSkipRetries = 0;
+        mHandler.removeCallbacks(remoteSkipTick);
+        mHandler.post(remoteSkipTick);
+    }
+
+    /** Seeks to a position, keeping only the latest target if a seek is already running. */
+    public void seekQueued(long pos) {
+        seekQueue.set(pos);
+        queuedSeekRetries = 0;
+        mHandler.removeCallbacks(queuedSeekTick);
+        mHandler.post(queuedSeekTick);
     }
 
     public void updateTvProgramInfo() {

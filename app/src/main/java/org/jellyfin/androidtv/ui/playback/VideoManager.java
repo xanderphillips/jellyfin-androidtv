@@ -49,6 +49,7 @@ import androidx.media3.ui.PlayerView;
 import org.jellyfin.androidtv.R;
 import org.jellyfin.androidtv.data.compat.StreamInfo;
 import org.jellyfin.androidtv.preference.UserPreferences;
+import org.jellyfin.androidtv.preference.constant.BufferDefaults;
 import org.jellyfin.androidtv.preference.constant.BufferLength;
 import org.jellyfin.androidtv.preference.constant.ZoomMode;
 import org.jellyfin.androidtv.util.sdk.SubtitleLanguageKt;
@@ -74,6 +75,9 @@ import timber.log.Timber;
 
 @OptIn(markerClass = UnstableApi.class)
 public class VideoManager {
+    /** How much already-played media the larger buffer presets keep, so short skips back reuse it. */
+    private static final int BACK_BUFFER_MS = 30_000;
+
     private ZoomMode mZoomMode;
     private Activity mActivity;
     private Equalizer mEqualizer;
@@ -255,10 +259,14 @@ public class VideoManager {
         if (bufferLength == BufferLength.LARGE) {
             loadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(50_000, 120_000, 2_500, 5_000)
+                    .setTargetBufferBytes(BufferDefaults.INSTANCE.byteCap(Runtime.getRuntime().maxMemory()))
+                    .setBackBuffer(BACK_BUFFER_MS, true)
                     .build();
         } else if (bufferLength == BufferLength.EXTRA_LARGE) {
             loadControl = new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(80_000, 240_000, 5_000, 10_000)
+                    .setTargetBufferBytes(BufferDefaults.INSTANCE.byteCap(Runtime.getRuntime().maxMemory()))
+                    .setBackBuffer(BACK_BUFFER_MS, true)
                     .build();
         } else {
             loadControl = new DefaultLoadControl();
@@ -339,6 +347,10 @@ public class VideoManager {
         mExoPlayer.setPlayWhenReady(true);
         normalWidth = mExoPlayerView.getLayoutParams().width;
         normalHeight = mExoPlayerView.getLayoutParams().height;
+    }
+
+    public boolean getPlayWhenReady() {
+        return mExoPlayer != null && mExoPlayer.getPlayWhenReady();
     }
 
     public void play() {

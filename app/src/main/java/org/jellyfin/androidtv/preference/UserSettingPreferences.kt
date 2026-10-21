@@ -17,10 +17,6 @@ class UserSettingPreferences(
 		val skipBackLength = intPreference("skipBackLength", 10_000)
 		val skipForwardLength = intPreference("skipForwardLength", 30_000)
 
-		/** Thumbstick skip steps (VR/gamepad controllers), restricted to [ThumbstickSkipLengths.ALLOWED_MS]. */
-		val thumbstickSkipBackLength = intPreference("thumbstickSkipBackLength", ThumbstickSkipLengths.DEFAULT_BACK_MS)
-		val thumbstickSkipForwardLength = intPreference("thumbstickSkipForwardLength", ThumbstickSkipLengths.DEFAULT_FORWARD_MS)
-
 		val homesection0 = enumPreference("homesection0", HomeSectionType.LIBRARY_TILES_SMALL)
 		val homesection1 = enumPreference("homesection1", HomeSectionType.RESUME)
 		val homesection2 = enumPreference("homesection2", HomeSectionType.RESUME_AUDIO)
